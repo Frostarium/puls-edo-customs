@@ -29,7 +29,6 @@ function s.initial_effect(c)
     e3:SetCategory(CATEGORY_DESTROY)
     e3:SetType(EFFECT_TYPE_QUICK_O)
     e3:SetCode(EVENT_FREE_CHAIN)
-    e3:SetProperty(EFFECT_FLAG_CARD_TARGET)
     e3:SetRange(LOCATION_MZONE)
     e3:SetHintTiming(0,TIMINGS_CHECK_MONSTER+TIMING_END_PHASE)
     e3:SetCountLimit(1,id)
@@ -72,34 +71,16 @@ function s.negop(e,tp,eg,ep,ev,re,r,rp)
     end
 end
 
-function s.destg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
-    if chkc then return chkc:IsLocation(LOCATION_MZONE) and chkc:IsControler(1-tp) end
-    if chk==0 then return Duel.IsExistingTarget(Card.IsFaceup,tp,0,LOCATION_MZONE,1,nil) end
-    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_DESTROY)
-    local g=Duel.SelectTarget(tp,Card.IsFaceup,tp,0,LOCATION_MZONE,1,1,nil)
-    Duel.SetOperationInfo(0,CATEGORY_DESTROY,g,1,0,0)
-end
-
-function s.desfilter(c,atk)
-    return c:IsFaceup() and c:GetAttack()<=atk
+function s.destg(e,tp,eg,ep,ev,re,r,rp,chk)
+    if chk==0 then return Duel.IsExistingMatchingCard(nil,tp,0,LOCATION_ONFIELD,1,nil) end
+    Duel.SetOperationInfo(0,CATEGORY_DESTROY,nil,1,1-tp,LOCATION_ONFIELD)
 end
 
 function s.desop(e,tp,eg,ep,ev,re,r,rp)
-    local c=e:GetHandler()
-    if c:IsRelateToEffect(e) then
-        --Register a flag to prevent this card from using it again during the next turn
-        c:RegisterFlagEffect(id,RESETS_STANDARD_PHASE_END,EFFECT_FLAG_CLIENT_HINT,2,0,aux.Stringid(id,2))
-    end
-    local tc=Duel.GetFirstTarget()
-    if tc:IsRelateToEffect(e) then
-        local atk=tc:GetAttack()
-        local g=Group.CreateGroup()
-        g:AddCard(tc)
-        if Duel.Destroy(tc,REASON_EFFECT)~=0 then
-            local dg=Duel.GetMatchingGroup(s.desfilter,tp,0,LOCATION_MZONE,nil,atk)
-            if #dg>0 then
-                Duel.Destroy(dg,REASON_EFFECT)
-            end
-        end
+    local g=Duel.GetMatchingGroup(nil,tp,0,LOCATION_ONFIELD,nil)
+    if #g>0 then
+        Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_DESTROY)
+        local sg=g:Select(tp,1,2,nil)
+        Duel.Destroy(sg,REASON_EFFECT)
     end
 end
