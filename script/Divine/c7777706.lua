@@ -74,6 +74,7 @@ function s.annop(e,tp,eg,ep,ev,re,r,rp)
     if Duel.GetFieldGroupCount(1-tp,LOCATION_DECK,0)<3 then return end
     local g=Duel.GetDecktopGroup(1-tp,3)
     if #g>0 then
+        Duel.DisableShuffleCheck()
         Duel.RemoveCards(g)
     end
 end

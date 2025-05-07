@@ -53,8 +53,10 @@ function s.spop(e,tp,eg,ep,ev,re,r,rp)
                 local tc=sg:GetFirst()
                 if tc:IsType(TYPE_XYZ) and tc:GetOverlayCount()>0 then
                     local og=tc:GetOverlayGroup()
+                    og:ForEach(function(c) c:ResetEffect(RESETS_STANDARD,RESET_EVENT) end)
                     Duel.RemoveCards(og)
                 end
+                tc:ResetEffect(RESETS_STANDARD,RESET_EVENT)
                 Duel.RemoveCards(sg)
             end
         end

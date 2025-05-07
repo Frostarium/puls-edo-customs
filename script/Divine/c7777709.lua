@@ -70,12 +70,17 @@ end
 
 function s.rmop(e,tp,eg,ep,ev,re,r,rp)
     local c=e:GetHandler()
-	if c:IsRelateToEffect(e) then
-		--Register a flag to prevent this card from using it again during the next turn
-		c:RegisterFlagEffect(id,RESETS_STANDARD_PHASE_END,EFFECT_FLAG_CLIENT_HINT,2,0,aux.Stringid(id,2))
+    if c:IsRelateToEffect(e) then
+        c:RegisterFlagEffect(id,RESETS_STANDARD_PHASE_END,EFFECT_FLAG_CLIENT_HINT,2,0,aux.Stringid(id,2))
     end
     local tc=Duel.GetFirstTarget()
     if tc:IsRelateToEffect(e) then
+        tc:ResetEffect(RESETS_STANDARD,RESET_EVENT)
+        if tc:IsType(TYPE_XYZ) and tc:GetOverlayCount()>0 then
+            local og=tc:GetOverlayGroup()
+            og:ForEach(function(c) c:ResetEffect(RESETS_STANDARD,RESET_EVENT) end)
+            Duel.RemoveCards(og)
+        end
         Duel.RemoveCards(tc)
     end
 end

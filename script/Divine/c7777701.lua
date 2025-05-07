@@ -29,27 +29,30 @@ function s.initial_effect(c)
     e2:SetDescription(aux.Stringid(id,1))
     e2:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
     e2:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
-    e2:SetCode(EVENT_SUMMON_SUCCESS+EVENT_SPSUMMON_SUCCESS)
+    e2:SetCode(EVENT_SUMMON_SUCCESS)
     e2:SetProperty(EFFECT_FLAG_DELAY)
     e2:SetCountLimit(1,{id,1})
     e2:SetTarget(s.thtg)
     e2:SetOperation(s.thop)
     c:RegisterEffect(e2)
+    local e3=e2:Clone()
+    e3:SetCode(EVENT_SPSUMMON_SUCCESS)
+    c:RegisterEffect(e3)
 end
 
 function s.spfilter(c)
-    return c:IsDiscardable() and c:IsAttribute(ATTRIBUTE_DIVINE)
+    return c:IsReleasable() and c:IsAttribute(ATTRIBUTE_DIVINE)
 end
 
 function s.spcon(e,c)
     if c==nil then return true end
     local tp=c:GetControler()
     return Duel.GetLocationCount(tp,LOCATION_MZONE)>0
-        and Duel.IsExistingMatchingCard(s.spfilter,tp,LOCATION_HAND,0,1,e:GetHandler())
+        and Duel.IsExistingMatchingCard(s.spfilter,tp,LOCATION_MZONE+LOCATION_HAND,0,1,nil)
 end
 
 function s.sptg(e,tp,eg,ep,ev,re,r,rp,c)
-    local g=Duel.SelectMatchingCard(tp,s.spfilter,tp,LOCATION_HAND,0,1,1,e:GetHandler())
+    local g=Duel.SelectMatchingCard(tp,s.spfilter,tp,LOCATION_MZONE+LOCATION_HAND,0,1,1,nil)
     if #g>0 then
         g:KeepAlive()
         e:SetLabelObject(g)
@@ -61,7 +64,7 @@ end
 function s.spop(e,tp,eg,ep,ev,re,r,rp,c)
     local g=e:GetLabelObject()
     if not g then return end
-    Duel.SendtoGrave(g,REASON_DISCARD+REASON_COST)
+    Duel.Release(g,REASON_COST)
     g:DeleteGroup()
 end
 
@@ -92,12 +95,8 @@ function s.eraseop(e,tp,eg,ep,ev,re,r,rp)
         local was_extra=tc:IsSummonLocation(LOCATION_EXTRA)
         if tc:IsType(TYPE_XYZ) and tc:GetOverlayCount()>0 then
             local og=tc:GetOverlayGroup()
+            og:ForEach(function(c) c:ResetEffect(RESETS_STANDARD,RESET_EVENT) end)
             Duel.RemoveCards(og)
-        end
-        if Duel.RemoveCards(tc) and was_extra then
-            local e1=e:Clone()
-            e1:SetCountLimit(1,0,EFFECT_COUNT_CODE_OATH)
-            Duel.RegisterEffect(e1,tp)
         end
     end
 end

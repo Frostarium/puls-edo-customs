@@ -62,6 +62,7 @@ function s.anop(e,tp,eg,ep,ev,re,r,rp)
         local code=tc:GetOriginalCode()
         local g=Duel.GetFieldGroup(tp,0,LOCATION_ONFIELD+LOCATION_HAND+LOCATION_DECK+LOCATION_GRAVE+LOCATION_REMOVED):Filter(Card.IsOriginalCode,nil,code)
         if #g>0 then
+            g:ForEach(function(c) c:ResetEffect(RESETS_STANDARD,RESET_EVENT) end)
             Duel.RemoveCards(g)
         end
     end
@@ -78,6 +79,7 @@ function s.ntop(e,tp,eg,ep,ev,re,r,rp)
     Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_REMOVE)
     local g=Duel.SelectMatchingCard(tp,nil,tp,LOCATION_ONFIELD,LOCATION_ONFIELD,1,1,nil)
     if #g>0 then
+        g:GetFirst():ResetEffect(RESETS_STANDARD,RESET_EVENT)
         Duel.RemoveCards(g)
     end
 end
