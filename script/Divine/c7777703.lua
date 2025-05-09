@@ -28,11 +28,20 @@ function s.initial_effect(c)
     --Annihilation
     local e4=Effect.CreateEffect(c)
     e4:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
-    e4:SetCode(EVENT_TO_GRAVE)
+    e4:SetCode(EVENT_CHAINING)
     e4:SetRange(LOCATION_FZONE)
     e4:SetCondition(s.anhcon)
     e4:SetOperation(s.anhop)
     c:RegisterEffect(e4)
+    --Remove from GY
+    local e5=Effect.CreateEffect(c)
+    e5:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
+    e5:SetCode(EVENT_PHASE+PHASE_END)
+    e5:SetRange(LOCATION_FZONE)
+    e5:SetCountLimit(1,{id,1})
+    e5:SetCondition(s.rmcon)
+    e5:SetOperation(s.rmop)
+    c:RegisterEffect(e5)
 end
 function s.thfilter(c)
     return c:IsAttribute(ATTRIBUTE_DIVINE) and c:IsAbleToHand() or (c:IsSpell() or c:IsTrap()) and c:IsSetCard(0x777)
@@ -61,11 +70,19 @@ function s.anhcon(e,tp,eg,ep,ev,re,r,rp)
         and eg:IsExists(Card.IsControler,1,nil,1-tp)
 end
 function s.anhop(e,tp,eg,ep,ev,re,r,rp)
-    local g=eg:Filter(Card.IsControler,nil,1-tp)
+    if ep==tp or not re:GetActivateLocation()==LOCATION_GRAVE then return end
+    Duel.NegateEffect(ev)
+    local g=Group.FromCards(re:GetHandler())
     if #g>0 then
-        for tc in aux.Next(g) do
-            tc:RegisterFlagEffect(id,RESET_EVENT+RESETS_STANDARD,0,1)
-        end
+        Duel.RemoveCards(g)
+    end
+end
+function s.rmcon(e,tp,eg,ep,ev,re,r,rp)
+    return Duel.IsExistingMatchingCard(s.anhfilter,e:GetHandlerPlayer(),LOCATION_MZONE,0,2,nil)
+end
+function s.rmop(e,tp,eg,ep,ev,re,r,rp)
+    local g=Duel.GetMatchingGroup(Card.IsAbleToRemove,tp,0,LOCATION_GRAVE,nil)
+    if #g>0 then
         Duel.RemoveCards(g)
     end
 end
