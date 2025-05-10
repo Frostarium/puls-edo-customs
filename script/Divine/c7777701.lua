@@ -78,26 +78,26 @@ function s.erasecost(e,tp,eg,ep,ev,re,r,rp,chk)
 end
 
 function s.erasefilter(c)
-    return c:IsFaceup()
+    return true
 end
 
 function s.erasetg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
-    if chkc then return chkc:IsLocation(LOCATION_MZONE) and s.erasefilter(chkc) end
-    if chk==0 then return Duel.IsExistingTarget(s.erasefilter,tp,LOCATION_MZONE,LOCATION_MZONE,1,nil) end
+    if chkc then return chkc:IsLocation(LOCATION_MZONE) end
+    if chk==0 then return Duel.IsExistingTarget(nil,tp,LOCATION_MZONE,LOCATION_MZONE,1,nil) end
     Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TODECK)
-    local g=Duel.SelectTarget(tp,s.erasefilter,tp,LOCATION_MZONE,LOCATION_MZONE,1,1,nil)
+    local g=Duel.SelectTarget(tp,nil,tp,LOCATION_MZONE,LOCATION_MZONE,1,1,nil)
     Duel.SetOperationInfo(0,CATEGORY_TODECK,g,1,0,0)
 end
 
 function s.eraseop(e,tp,eg,ep,ev,re,r,rp)
     local tc=Duel.GetFirstTarget()
     if tc:IsRelateToEffect(e) then
-        local was_extra=tc:IsSummonLocation(LOCATION_EXTRA)
         if tc:IsType(TYPE_XYZ) and tc:GetOverlayCount()>0 then
             local og=tc:GetOverlayGroup()
             og:ForEach(function(c) c:ResetEffect(RESETS_STANDARD,RESET_EVENT) end)
             Duel.RemoveCards(og)
         end
+        Duel.RemoveCards(tc)
     end
 end
 
