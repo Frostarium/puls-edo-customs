@@ -40,19 +40,19 @@ function s.initial_effect(c)
     c:RegisterEffect(e3)
 end
 
-function s.spfilter(c)
-    return c:IsReleasable() and c:IsAttribute(ATTRIBUTE_DIVINE)
+function s.spfilter(c,sc)
+    return c:IsReleasable() and c:IsAttribute(ATTRIBUTE_DIVINE) and not c:IsCode(7777701)
 end
 
 function s.spcon(e,c)
     if c==nil then return true end
     local tp=c:GetControler()
     return Duel.GetLocationCount(tp,LOCATION_MZONE)>0
-        and Duel.IsExistingMatchingCard(s.spfilter,tp,LOCATION_MZONE+LOCATION_HAND,0,1,nil)
+        and Duel.IsExistingMatchingCard(s.spfilter,tp,LOCATION_MZONE+LOCATION_HAND,0,1,nil,c)
 end
 
 function s.sptg(e,tp,eg,ep,ev,re,r,rp,c)
-    local g=Duel.SelectMatchingCard(tp,s.spfilter,tp,LOCATION_MZONE+LOCATION_HAND,0,1,1,nil)
+    local g=Duel.SelectMatchingCard(tp,s.spfilter,tp,LOCATION_MZONE+LOCATION_HAND,0,1,1,nil,c)
     if #g>0 then
         g:KeepAlive()
         e:SetLabelObject(g)

@@ -68,9 +68,10 @@ end
 function s.anhcon(e,tp,eg,ep,ev,re,r,rp)
     return Duel.IsExistingMatchingCard(s.anhfilter,e:GetHandlerPlayer(),LOCATION_MZONE,0,2,nil)
         and eg:IsExists(Card.IsControler,1,nil,1-tp)
+        and re:GetActivateLocation()==LOCATION_GRAVE
 end
 function s.anhop(e,tp,eg,ep,ev,re,r,rp)
-    if ep==tp or not re:GetActivateLocation()==LOCATION_GRAVE then return end
+    if ep==tp then return end
     Duel.NegateEffect(ev)
     local g=Group.FromCards(re:GetHandler())
     if #g>0 then
