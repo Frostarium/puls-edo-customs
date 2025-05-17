@@ -78,9 +78,7 @@ function s.setop(e,tp,eg,ep,ev,re,r,rp)
 	end
 end
 function s.thfilter(c,tp)
-	return c:IsPreviousLocation(LOCATION_MZONE) and c:IsPreviousPosition(POS_FACEUP)
-		and c:IsType(TYPE_FUSION) and c:IsLevel(12)
-		and c:IsPreviousControler(tp) and c:IsReason(REASON_OPPONENT)
+	return rp==1-tp and c:IsPreviousLocation(LOCATION_MZONE) and c:IsPreviousControler(tp) and c:IsType(TYPE_FUSION) and c:IsLevel(12)
 end
 function s.thcon(e,tp,eg,ep,ev,re,r,rp)
 	return eg:IsExists(s.thfilter,1,nil,tp)

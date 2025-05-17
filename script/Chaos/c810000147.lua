@@ -18,13 +18,15 @@ function s.initial_effect(c)
 	e2:SetTarget(s.lptg)
 	e2:SetOperation(s.lpop)
 	c:RegisterEffect(e2)
-	--Give piercing to Level 12 Fusions
+	--Prevent activation during Level 12 Fusion attacks
 	local e3=Effect.CreateEffect(c)
 	e3:SetType(EFFECT_TYPE_FIELD)
-	e3:SetCode(EFFECT_PIERCE)
+	e3:SetProperty(EFFECT_FLAG_PLAYER_TARGET)
+	e3:SetCode(EFFECT_CANNOT_ACTIVATE)
+	e3:SetTargetRange(0,1)
 	e3:SetRange(LOCATION_SZONE)
-	e3:SetTargetRange(LOCATION_MZONE,0)
-	e3:SetTarget(s.piercingtg)
+	e3:SetCondition(s.actcon)
+	e3:SetValue(1)
 	c:RegisterEffect(e3)
 	--Negate during Battle Phase
 	local e4=Effect.CreateEffect(c)
@@ -55,8 +57,9 @@ function s.lpop(e,tp,eg,ep,ev,re,r,rp)
 		Duel.Draw(tp,1,REASON_EFFECT)
 	end
 end
-function s.piercingtg(e,c)
-    return c:IsType(TYPE_FUSION) and c:IsLevel(12)
+function s.actcon(e)
+    local ac=Duel.GetAttacker()
+    return ac and ac:IsControler(e:GetHandlerPlayer()) and ac:IsType(TYPE_FUSION) and ac:IsLevel(12) and Duel.GetCurrentPhase()==PHASE_DAMAGE
 end
 function s.negcon(e,tp,eg,ep,ev,re,r,rp)
 	return Duel.IsBattlePhase() and rp==1-tp and Duel.IsChainNegatable(ev) and Duel.IsExistingMatchingCard(s.cfilter,tp,LOCATION_MZONE,0,1,nil)

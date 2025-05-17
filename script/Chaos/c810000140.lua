@@ -85,5 +85,5 @@ function s.contactop(g)
 end
 
 function s.spcon(tp)
-    return Duel.GetFlagEffect(tp,id)+Duel.GetFlagEffect(tp,id+1)>=6
+    return Duel.GetFlagEffect(tp,id)+Duel.GetFlagEffect(tp,id+1)>=8
 end

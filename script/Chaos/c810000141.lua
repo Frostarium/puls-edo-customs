@@ -10,15 +10,15 @@ function s.initial_effect(c)
 	e1:SetValue(aux.FALSE)
 	c:RegisterEffect(e1)
 	
-	--Destroy and search
+	--Banish face-down
 	local e2=Effect.CreateEffect(c)
 	e2:SetDescription(aux.Stringid(id,0))
-	e2:SetCategory(CATEGORY_DESTROY+CATEGORY_SEARCH+CATEGORY_TOHAND)
+	e2:SetCategory(CATEGORY_REMOVE+CATEGORY_SEARCH+CATEGORY_TOHAND)
 	e2:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
 	e2:SetCode(EVENT_SPSUMMON_SUCCESS)
 	e2:SetProperty(EFFECT_FLAG_DELAY)
-	e2:SetTarget(s.destg)
-	e2:SetOperation(s.desop)
+	e2:SetTarget(s.rmtg)
+	e2:SetOperation(s.rmop)
 	c:RegisterEffect(e2)
 	
 	--Return to Extra Deck
@@ -32,31 +32,23 @@ function s.initial_effect(c)
 	e3:SetTarget(s.tdtg)
 	e3:SetOperation(s.tdop)
 	c:RegisterEffect(e3)
+	local e4=Effect.CreateEffect(c)
+	e4:SetType(EFFECT_TYPE_SINGLE)
+	e4:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
+	e4:SetRange(LOCATION_MZONE)
+	e4:SetCode(EFFECT_INDESTRUCTABLE_BATTLE)
+	e4:SetValue(1)
+	c:RegisterEffect(e4)
+	local e5=Effect.CreateEffect(c)
+	e5:SetCode(EFFECT_REFLECT_BATTLE_DAMAGE)
+	e5:SetType(EFFECT_TYPE_SINGLE)
+	e5:SetValue(1)
+	c:RegisterEffect(e5)
 end
 
-function s.destg(e,tp,eg,ep,ev,re,r,rp,chk)
-    local b1=Duel.IsExistingMatchingCard(Card.IsType,tp,0,LOCATION_ONFIELD,1,nil,TYPE_SPELL+TYPE_TRAP)
-    local b2=Duel.IsExistingMatchingCard(Card.IsType,tp,0,LOCATION_MZONE,1,nil,TYPE_MONSTER)
-    if chk==0 then return b1 or b2 end
-    local ops={}
-    local opval={}
-    if b1 then
-        table.insert(ops,aux.Stringid(id,2))
-        table.insert(opval,0)
-    end
-    if b2 then
-        table.insert(ops,aux.Stringid(id,3))
-        table.insert(opval,1)
-    end
-    local op=opval[Duel.SelectOption(tp,table.unpack(ops))+1]
-    e:SetLabel(op)
-    local g
-    if op==0 then
-        g=Duel.GetMatchingGroup(Card.IsType,tp,0,LOCATION_ONFIELD,nil,TYPE_SPELL+TYPE_TRAP)
-    else
-        g=Duel.GetMatchingGroup(Card.IsType,tp,0,LOCATION_MZONE,nil,TYPE_MONSTER)
-    end
-    Duel.SetOperationInfo(0,CATEGORY_DESTROY,g,#g,0,0)
+function s.rmtg(e,tp,eg,ep,ev,re,r,rp,chk)
+    if chk==0 then return Duel.IsExistingMatchingCard(Card.IsAbleToRemove,tp,0,LOCATION_ONFIELD,1,nil,tp,POS_FACEDOWN) end
+    Duel.SetOperationInfo(0,CATEGORY_REMOVE,nil,1,1-tp,LOCATION_ONFIELD)
     Duel.SetOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_DECK+LOCATION_GRAVE)
 end
 
@@ -64,23 +56,19 @@ function s.thfilter(c)
 	return c:IsSetCard(0x456) and c:IsAbleToHand()
 end
 
-function s.desop(e,tp,eg,ep,ev,re,r,rp)
-	local g
-	if e:GetLabel()==0 then
-		g=Duel.GetMatchingGroup(Card.IsType,tp,0,LOCATION_ONFIELD,nil,TYPE_SPELL+TYPE_TRAP)
-	else
-		g=Duel.GetMatchingGroup(Card.IsType,tp,0,LOCATION_MZONE,nil,TYPE_MONSTER)
-	end
-	if #g>0 and Duel.Destroy(g,REASON_EFFECT)>0 then
-		local sg=Duel.GetMatchingGroup(aux.NecroValleyFilter(s.thfilter),tp,LOCATION_DECK+LOCATION_GRAVE,0,nil)
-		if #sg>0 and Duel.SelectYesNo(tp,aux.Stringid(id,4)) then
-			Duel.BreakEffect()
-			Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
-			local tg=sg:Select(tp,1,1,nil)
-			Duel.SendtoHand(tg,nil,REASON_EFFECT)
-			Duel.ConfirmCards(1-tp,tg)
-		end
-	end
+function s.rmop(e,tp,eg,ep,ev,re,r,rp)
+    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_REMOVE)
+    local g=Duel.SelectMatchingCard(tp,Card.IsAbleToRemove,tp,0,LOCATION_ONFIELD,1,1,nil,tp,POS_FACEDOWN)
+    if #g>0 and Duel.Remove(g,POS_FACEDOWN,REASON_EFFECT)>0 then
+        local sg=Duel.GetMatchingGroup(aux.NecroValleyFilter(s.thfilter),tp,LOCATION_DECK+LOCATION_GRAVE,0,nil)
+        if #sg>0 and Duel.SelectYesNo(tp,aux.Stringid(id,4)) then
+            Duel.BreakEffect()
+            Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
+            local tg=sg:Select(tp,1,1,nil)
+            Duel.SendtoHand(tg,nil,REASON_EFFECT)
+            Duel.ConfirmCards(1-tp,tg)
+        end
+    end
 end
 
 function s.tdtg(e,tp,eg,ep,ev,re,r,rp,chk)
