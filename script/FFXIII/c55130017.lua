@@ -130,6 +130,17 @@ function s.negop2(e,tp,eg,ep,ev,re,r,rp)
                 e5:SetValue(aux.cannotmatfilter(SUMMON_TYPE_FUSION,SUMMON_TYPE_SYNCHRO,SUMMON_TYPE_XYZ,SUMMON_TYPE_LINK))
                 e5:SetReset(RESET_EVENT+RESETS_STANDARD)
                 tc:RegisterEffect(e5)
+		
+		--Non tributable
+		local e6=Effect.CreateEffect(c)
+		e6:SetType(EFFECT_TYPE_SINGLE)
+		e6:SetCode(EFFECT_UNRELEASABLE_SUM)
+		e6:SetReset(RESETS_STANDARD_PHASE_END)
+		e6:SetValue(1)
+		tc:RegisterEffect(e6)
+		local e7=e6:Clone()
+		e7:SetCode(EFFECT_UNRELEASABLE_NONSUM)
+		tc:RegisterEffect(e7)
             end
         end
     end

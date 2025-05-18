@@ -31,7 +31,8 @@ function s.initial_effect(c)
 	e3:SetDescription(aux.Stringid(id,2))
 	e3:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
 	e3:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
-	e3:SetCode(EVENT_TO_GRAVE)
+	e3:SetCode(EVENT_LEAVE_FIELD)
+	e3:SetProperty(EFFECT_FLAG_DELAY)
 	e3:SetRange(LOCATION_FZONE)
 	e3:SetCountLimit(1,{id,2},EFFECT_COUNT_CODE_OATH)
 	e3:SetCondition(s.thcon)
@@ -77,11 +78,12 @@ function s.setop(e,tp,eg,ep,ev,re,r,rp)
 		Duel.SSet(tp,c)
 	end
 end
-function s.thfilter(c,tp)
-	return rp==1-tp and c:IsPreviousLocation(LOCATION_MZONE) and c:IsPreviousControler(tp) and c:IsType(TYPE_FUSION) and c:IsLevel(12)
+function s.thfilter(c,tp,rp)
+	return c:IsPreviousLocation(LOCATION_MZONE) and c:IsPreviousControler(tp) 
+		and c:IsType(TYPE_FUSION) and c:IsLevel(12) and rp==1-tp
 end
 function s.thcon(e,tp,eg,ep,ev,re,r,rp)
-	return eg:IsExists(s.thfilter,1,nil,tp)
+	return eg:IsExists(s.thfilter,1,nil,tp,rp)
 end
 function s.thtg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return Duel.IsExistingMatchingCard(Card.IsAbleToHand,tp,LOCATION_DECK,0,1,nil) end
