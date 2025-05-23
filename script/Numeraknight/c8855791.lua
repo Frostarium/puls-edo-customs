@@ -75,12 +75,14 @@ function s.spop(e,tp,eg,ep,ev,re,r,rp)
     local sumlv=lv1+lv2
     local diflv=math.abs(lv1-lv2)
     
-    if sumlv>=10 and Duel.IsExistingMatchingCard(Card.IsSetCard,tp,LOCATION_EXTRA,0,1,nil,0x657) 
+    if sumlv>=10 and Duel.IsExistingMatchingCard(s.xyzfilter,tp,LOCATION_EXTRA,0,1,nil,g) 
         and Duel.SelectYesNo(tp,aux.Stringid(id,1)) then
         Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
-        local xyz=Duel.SelectMatchingCard(tp,aux.AND(Card.IsSetCard,Card.IsCanBeSpecialSummoned),tp,LOCATION_EXTRA,0,1,1,nil,0x657,e,0,tp):GetFirst()
+        local xyz=Duel.SelectMatchingCard(tp,s.xyzfilter,tp,LOCATION_EXTRA,0,1,1,nil,g):GetFirst()
         if xyz then
-            Duel.SpecialSummon(xyz,0,tp,tp,false,false,POS_FACEUP)
+            if Duel.SpecialSummon(xyz,0,tp,tp,false,false,POS_FACEUP)~=0 then
+                Duel.Overlay(xyz,g)
+            end
         end
     else
         if Duel.SendtoDeck(g,nil,2,REASON_EFFECT)~=2 then return end
