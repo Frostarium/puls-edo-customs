@@ -35,6 +35,7 @@ function s.initial_effect(c)
     e4:SetHintTiming(0,TIMING_END_PHASE)
     e4:SetCondition(s.spcon2)
     c:RegisterEffect(e4)
+	--bounce to hand
     local e5=Effect.CreateEffect(c)
     e5:SetCategory(CATEGORY_TOHAND)
     e5:SetType(EFFECT_TYPE_QUICK_O)
