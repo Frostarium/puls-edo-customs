@@ -43,8 +43,7 @@ function s.cfilter(c)
 end
 
 function s.thcon(e,tp,eg,ep,ev,re,r,rp)
-    local g=Duel.GetFieldGroup(tp,LOCATION_MZONE,0)
-    return #g==0 or g:IsExists(s.cfilter,#g,nil)
+    return Duel.GetFieldGroupCount(tp,LOCATION_MZONE,0)==0 or Duel.IsExistingMatchingCard(s.cfilter,tp,LOCATION_MZONE,0,1,nil)
 end
 
 function s.thfilter(c)
@@ -64,6 +63,8 @@ function s.thop(e,tp,eg,ep,ev,re,r,rp)
     if #g>0 then
         Duel.SendtoHand(g,nil,REASON_EFFECT)
         Duel.ConfirmCards(1-tp,g)
+        Duel.BreakEffect()
+        Duel.DiscardHand(tp,Card.IsDiscardable,1,1,REASON_EFFECT+REASON_DISCARD)
     end
 end
 

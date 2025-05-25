@@ -42,12 +42,22 @@ function s.operation(e,tp,eg,ep,ev,re,r,rp)
 end
 
 function s.drawtg(e,tp,eg,ep,ev,re,r,rp,chk)
-    if chk==0 then return Duel.IsPlayerCanDraw(tp,2) end
-    Duel.SetOperationInfo(0,CATEGORY_DRAW,nil,0,tp,2)
+    if chk==0 then return Duel.GetLocationCount(tp,LOCATION_MZONE)>0 
+        and Duel.IsExistingMatchingCard(s.spfilter,tp,LOCATION_GRAVE,0,1,nil,e,tp) end
+    Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_GRAVE)
+end
+
+function s.spfilter(c,e,tp)
+    return c:IsType(TYPE_NORMAL) and c:IsCanBeSpecialSummoned(e,0,tp,false,false)
 end
 
 function s.drawop(e,tp,eg,ep,ev,re,r,rp)
-    Duel.Draw(tp,2,REASON_EFFECT)
+    if Duel.GetLocationCount(tp,LOCATION_MZONE)<=0 then return end
+    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
+    local g=Duel.SelectMatchingCard(tp,s.spfilter,tp,LOCATION_GRAVE,0,1,1,nil,e,tp)
+    if #g>0 then
+        Duel.SpecialSummon(g,0,tp,tp,false,false,POS_FACEUP)
+    end
 end
 
 function s.gfilter(c)
