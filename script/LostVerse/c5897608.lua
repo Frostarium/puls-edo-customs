@@ -73,9 +73,8 @@ function s.granteffectop(e,tp,eg,ep,ev,re,r,rp)
     if tc then
         local e1=Effect.CreateEffect(e:GetHandler())
         e1:SetDescription(aux.Stringid(id,2))
-        e1:SetCategory(CATEGORY_DESTROY+CATEGORY_DAMAGE)
-        e1:SetType(EFFECT_TYPE_QUICK_O)
-        e1:SetCode(EVENT_FREE_CHAIN)
+        e1:SetCategory(CATEGORY_DESTROY)
+        e1:SetType(EFFECT_TYPE_IGNITION)
         e1:SetRange(LOCATION_MZONE)
         e1:SetCountLimit(1)
         e1:SetTarget(s.destg)
@@ -86,19 +85,13 @@ end
 
 function s.destg(e,tp,eg,ep,ev,re,r,rp,chk)
     if chk==0 then return Duel.IsExistingMatchingCard(Card.IsType,tp,0,LOCATION_MZONE,1,nil,TYPE_MONSTER) end
-    Duel.SetOperationInfo(0,CATEGORY_DESTROY,nil,1,1-tp,LOCATION_MZONE)
-    Duel.SetOperationInfo(0,CATEGORY_DAMAGE,nil,0,1-tp,0)
+    local g=Duel.GetMatchingGroup(Card.IsType,tp,0,LOCATION_MZONE,nil,TYPE_MONSTER)
+    Duel.SetOperationInfo(0,CATEGORY_DESTROY,g,#g,0,0)
 end
 
 function s.desop(e,tp,eg,ep,ev,re,r,rp)
-    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_DESTROY)
-    local g=Duel.SelectMatchingCard(tp,Card.IsType,tp,0,LOCATION_MZONE,1,1,nil,TYPE_MONSTER)
+    local g=Duel.GetMatchingGroup(Card.IsType,tp,0,LOCATION_MZONE,nil,TYPE_MONSTER)
     if #g>0 then
-        local tc=g:GetFirst()
-        local atk=tc:GetAttack()
-        if atk<0 then atk=0 end
-        if Duel.Destroy(tc,REASON_EFFECT)>0 and atk>0 then
-            Duel.Damage(1-tp,atk,REASON_EFFECT)
-        end
+        Duel.Destroy(g,REASON_EFFECT)
     end
 end
