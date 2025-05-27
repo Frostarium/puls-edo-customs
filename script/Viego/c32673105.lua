@@ -11,7 +11,6 @@ function s.initial_effect(c)
 	e2:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
 	e2:SetCode(EVENT_CHAIN_SOLVING)
 	e2:SetRange(LOCATION_SZONE)
-	e2:SetCountLimit(1,{id,0})
 	e2:SetCondition(s.negcon)
 	e2:SetOperation(s.negop)
 	c:RegisterEffect(e2)
@@ -20,7 +19,6 @@ function s.initial_effect(c)
 	e3:SetDescription(aux.Stringid(id,1))
 	e3:SetCategory(CATEGORY_SPECIAL_SUMMON)
 	e3:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
-	e3:SetCountLimit(1,{id,0})
 	e3:SetCode(EVENT_RELEASE)
 	e3:SetRange(LOCATION_SZONE)
 	e3:SetProperty(EFFECT_FLAG_DELAY+EFFECT_FLAG_CARD_TARGET)
@@ -36,9 +34,11 @@ function s.negcon(e,tp,eg,ep,ev,re,r,rp)
 	return rp~=tp and re:IsActiveType(TYPE_SPELL+TYPE_TRAP+TYPE_MONSTER)
 		and Duel.IsExistingMatchingCard(s.cfilter,tp,LOCATION_MZONE,0,1,nil)
 		and Duel.IsChainDisablable(ev)
+		and e:GetHandler():GetFlagEffect(id)==0
 end
 function s.negop(e,tp,eg,ep,ev,re,r,rp)
 	if Duel.SelectYesNo(tp,aux.Stringid(id,0)) then
+		e:GetHandler():RegisterFlagEffect(id,RESETS_STANDARD_PHASE_END,0,1)
 		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_RELEASE)
 		local g=Duel.SelectMatchingCard(tp,s.cfilter,tp,LOCATION_MZONE,0,1,1,nil)
 		if #g>0 and Duel.Release(g,REASON_COST)~=0 then
@@ -50,7 +50,7 @@ function s.rmfilter(c,tp)
     return c:GetPreviousControler()==tp and c:IsReason(REASON_RELEASE)
 end
 function s.spcon(e,tp,eg,ep,ev,re,r,rp)
-    return eg:IsExists(s.rmfilter,1,nil,tp)
+    return eg:IsExists(s.rmfilter,1,nil,tp) and e:GetHandler():GetFlagEffect(id)==0
 end
 function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
 	if chkc then return chkc:IsLocation(LOCATION_GRAVE+LOCATION_REMOVED) and chkc:IsControler(1-tp) and chkc:IsCanBeSpecialSummoned(e,0,tp,false,false) end
@@ -64,6 +64,7 @@ function s.spop(e,tp,eg,ep,ev,re,r,rp)
 	if not e:GetHandler():IsRelateToEffect(e) then return end
 	local tc=Duel.GetFirstTarget()
 	if tc:IsRelateToEffect(e) and Duel.SpecialSummon(tc,0,tp,tp,false,false,POS_FACEUP)~=0 then
+		e:GetHandler():RegisterFlagEffect(id,RESETS_STANDARD_PHASE_END,0,1)
 		--Treat as "Ruined"
 		local e1=Effect.CreateEffect(e:GetHandler())
 		e1:SetType(EFFECT_TYPE_SINGLE)
