@@ -5,6 +5,7 @@ function s.initial_effect(c)
     local e1=Effect.CreateEffect(c)
     e1:SetType(EFFECT_TYPE_IGNITION)
     e1:SetRange(LOCATION_HAND)
+    e1:SetCountLimit(1,id)
     e1:SetCost(s.discost)
     e1:SetTarget(s.target)
     e1:SetOperation(s.operation)
@@ -42,7 +43,7 @@ function s.operation(e,tp,eg,ep,ev,re,r,rp)
 end
 
 function s.thfilter(c)
-    return c:IsSetCard(0x5bc) and c:IsAbleToHand()
+    return c:IsSetCard(0x5bc) and c:IsAbleToHand() and c:IsMonster()
 end
 
 function s.thtg(e,tp,eg,ep,ev,re,r,rp,chk)
