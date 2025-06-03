@@ -161,7 +161,7 @@ function s.ffilter(c,fc,sumtype,tp)
 end
 
 function s.contactfil(tp)
-    return Duel.GetMatchingGroup(Card.IsAbleToRemoveAsCost,tp,LOCATION_MZONE,0,nil)
+    return Duel.GetMatchingGroup(Card.IsAbleToRemoveAsCost,tp,LOCATION_ONFIELD,0,nil)
 end
 
 function s.contactop(g)
