@@ -92,12 +92,17 @@ end
 function s.eraseop(e,tp,eg,ep,ev,re,r,rp)
     local tc=Duel.GetFirstTarget()
     if tc:IsRelateToEffect(e) then
+        local g=Group.FromCards(tc)
+        local eg=tc:GetEquipGroup()
+        if #eg>0 then
+            g:Merge(eg)
+        end
         if tc:IsType(TYPE_XYZ) and tc:GetOverlayCount()>0 then
             local og=tc:GetOverlayGroup()
             og:ForEach(function(c) c:ResetEffect(RESETS_STANDARD,RESET_EVENT) end)
             Duel.RemoveCards(og)
         end
-        Duel.RemoveCards(tc)
+        Duel.RemoveCards(g)
     end
 end
 

@@ -81,7 +81,13 @@ function s.tgop(e,tp,eg,ep,ev,re,r,rp)
         if #g2>0 and Duel.SelectYesNo(tp,aux.Stringid(id,3)) then
             Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_REMOVE)
             local sg=g2:Select(tp,1,1,nil)
-            Duel.RemoveCards(sg)
+            local tc=sg:GetFirst()
+            local remg=Group.FromCards(tc)
+            local eg=tc:GetEquipGroup()
+            if #eg>0 then
+                remg:Merge(eg)
+            end
+            Duel.RemoveCards(remg)
         end
     end
 end

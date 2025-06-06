@@ -42,8 +42,8 @@ end
 
 --cost
 function s.ancost(e,tp,eg,ep,ev,re,r,rp,chk)
-    if chk==0 then return e:GetHandler():CheckRemoveOverlayCard(tp,2,REASON_COST) end
-    e:GetHandler():RemoveOverlayCard(tp,2,2,REASON_COST)
+    if chk==0 then return e:GetHandler():CheckRemoveOverlayCard(tp,1,REASON_COST) end
+    e:GetHandler():RemoveOverlayCard(tp,1,1,REASON_COST)
 end
 
 --target
@@ -59,19 +59,20 @@ end
 function s.anop(e,tp,eg,ep,ev,re,r,rp)
     local tc=Duel.GetFirstTarget()
     if tc and tc:IsRelateToEffect(e) then
-        local code=tc:GetOriginalCode()
-        local g=Duel.GetFieldGroup(tp,0,LOCATION_ONFIELD+LOCATION_HAND+LOCATION_DECK+LOCATION_GRAVE+LOCATION_REMOVED):Filter(Card.IsOriginalCode,nil,code)
-        if #g>0 then
-            g:ForEach(function(c) c:ResetEffect(RESETS_STANDARD,RESET_EVENT) end)
-            Duel.RemoveCards(g)
+        local g=Group.FromCards(tc)
+        local eg=tc:GetEquipGroup()
+        if #eg>0 then
+            g:Merge(eg)
         end
+        g:ForEach(function(c) c:ResetEffect(RESETS_STANDARD,RESET_EVENT) end)
+        Duel.RemoveCards(g)
     end
 end
 
 --non-targeting cost
 function s.ntcost(e,tp,eg,ep,ev,re,r,rp,chk)
-    if chk==0 then return e:GetHandler():CheckRemoveOverlayCard(tp,1,REASON_COST) end
-    e:GetHandler():RemoveOverlayCard(tp,1,1,REASON_COST)
+    if chk==0 then return e:GetHandler():CheckRemoveOverlayCard(tp,2,REASON_COST) end
+    e:GetHandler():RemoveOverlayCard(tp,2,2,REASON_COST)
 end
 
 --non-targeting operation
@@ -79,7 +80,17 @@ function s.ntop(e,tp,eg,ep,ev,re,r,rp)
     Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_REMOVE)
     local g=Duel.SelectMatchingCard(tp,nil,tp,LOCATION_ONFIELD,LOCATION_ONFIELD,1,1,nil)
     if #g>0 then
-        g:GetFirst():ResetEffect(RESETS_STANDARD,RESET_EVENT)
-        Duel.RemoveCards(g)
+        local tc=g:GetFirst()
+        local code=tc:GetOriginalCode()
+        local allg=Duel.GetFieldGroup(tp,0,LOCATION_ONFIELD+LOCATION_HAND+LOCATION_DECK+LOCATION_GRAVE+LOCATION_REMOVED):Filter(Card.IsOriginalCode,nil,code)
+        allg:AddCard(tc)
+        local eg=tc:GetEquipGroup()
+        if #eg>0 then
+            allg:Merge(eg)
+        end
+        if #allg>0 then
+            allg:ForEach(function(c) c:ResetEffect(RESETS_STANDARD,RESET_EVENT) end)
+            Duel.RemoveCards(allg)
+        end
     end
 end

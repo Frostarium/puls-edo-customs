@@ -76,13 +76,18 @@ function s.rmop(e,tp,eg,ep,ev,re,r,rp)
     end
     local tc=Duel.GetFirstTarget()
     if tc:IsRelateToEffect(e) then
-        tc:ResetEffect(RESETS_STANDARD,RESET_EVENT)
+        local g=Group.FromCards(tc)
+        local eg=tc:GetEquipGroup()
+        if #eg>0 then
+            g:Merge(eg)
+        end
+        g:ForEach(function(c) c:ResetEffect(RESETS_STANDARD,RESET_EVENT) end)
         if tc:IsType(TYPE_XYZ) and tc:GetOverlayCount()>0 then
             local og=tc:GetOverlayGroup()
             og:ForEach(function(c) c:ResetEffect(RESETS_STANDARD,RESET_EVENT) end)
             Duel.RemoveCards(og)
         end
-        Duel.RemoveCards(tc)
+        Duel.RemoveCards(g)
     end
 end
 

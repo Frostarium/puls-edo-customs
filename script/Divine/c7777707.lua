@@ -83,6 +83,10 @@ function s.annop(e,tp,eg,ep,ev,re,r,rp)
             local p=tc:GetControler()
             local gall=Group.CreateGroup()
             gall:AddCard(tc)
+            local eg=tc:GetEquipGroup()
+            if #eg>0 then
+                gall:Merge(eg)
+            end
             if tc:IsType(TYPE_XYZ) and tc:GetOverlayCount()>0 then
                 local og=tc:GetOverlayGroup()
                 gall:Merge(og)
