@@ -6,7 +6,7 @@ function s.initial_effect(c)
     e1:SetType(EFFECT_TYPE_ACTIVATE)
     e1:SetCode(EVENT_FREE_CHAIN)
     c:RegisterEffect(e1)
-    --ATK/DEF boost
+    --ATK/DEF boost for Lost Universe normal monsters
     local e2=Effect.CreateEffect(c)
     e2:SetType(EFFECT_TYPE_FIELD)
     e2:SetCode(EFFECT_UPDATE_ATTACK)
@@ -18,55 +18,40 @@ function s.initial_effect(c)
     local e3=e2:Clone()
     e3:SetCode(EFFECT_UPDATE_DEFENSE)
     c:RegisterEffect(e3)
-    --Grant protection to Lost Universe normal monsters
+    --Cannot be targeted by opponent's effects
     local e4=Effect.CreateEffect(c)
-    e4:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
-    e4:SetCode(EVENT_ADJUST)
+    e4:SetType(EFFECT_TYPE_FIELD)
+    e4:SetCode(EFFECT_CANNOT_BE_EFFECT_TARGET)
+    e4:SetProperty(EFFECT_FLAG_IGNORE_IMMUNE)
+    e4:SetTargetRange(LOCATION_MZONE,0)
+    e4:SetTarget(s.stattg)
+    e4:SetValue(aux.tgoval)
     e4:SetRange(LOCATION_FZONE)
-    e4:SetOperation(s.grantop)
     c:RegisterEffect(e4)
-    --Search
+    --Cannot be destroyed by opponent's effects
     local e5=Effect.CreateEffect(c)
-    e5:SetDescription(aux.Stringid(id,1))
-    e5:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
-    e5:SetType(EFFECT_TYPE_IGNITION)
+    e5:SetType(EFFECT_TYPE_FIELD)
+    e5:SetCode(EFFECT_INDESTRUCTABLE_EFFECT)
+    e5:SetTargetRange(LOCATION_MZONE,0)
+    e5:SetTarget(s.stattg)
+    e5:SetValue(aux.indoval)
     e5:SetRange(LOCATION_FZONE)
-    e5:SetCountLimit(1)
-    e5:SetCondition(s.srchcon)
-    e5:SetTarget(s.srchtg)
-    e5:SetOperation(s.srchop)
     c:RegisterEffect(e5)
+    --Search
+    local e6=Effect.CreateEffect(c)
+    e6:SetDescription(aux.Stringid(id,1))
+    e6:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
+    e6:SetType(EFFECT_TYPE_IGNITION)
+    e6:SetRange(LOCATION_FZONE)
+    e6:SetCountLimit(1)
+    e6:SetCondition(s.srchcon)
+    e6:SetTarget(s.srchtg)
+    e6:SetOperation(s.srchop)
+    c:RegisterEffect(e6)
 end
-
-local affected_cards={}
 
 function s.stattg(e,c)
-    return c:IsType(TYPE_NORMAL)
-end
-
-function s.grantop(e,tp,eg,ep,ev,re,r,rp)
-    local g=Duel.GetMatchingGroup(aux.FaceupFilter(Card.IsSetCard,0x5bc),tp,LOCATION_MZONE,0,nil)
-    for tc in aux.Next(g) do
-        if tc:IsType(TYPE_NORMAL) and not affected_cards[tc] then
-            --Grant targeting protection
-            local e1=Effect.CreateEffect(e:GetHandler())
-            e1:SetType(EFFECT_TYPE_SINGLE)
-            e1:SetCode(EFFECT_CANNOT_BE_EFFECT_TARGET)
-            e1:SetProperty(EFFECT_FLAG_IGNORE_IMMUNE)
-            e1:SetValue(aux.tgoval)
-            e1:SetReset(RESET_EVENT+RESETS_STANDARD)
-            tc:RegisterEffect(e1)
-            --Grant destruction protection
-            local e2=Effect.CreateEffect(e:GetHandler())
-            e2:SetType(EFFECT_TYPE_SINGLE)
-            e2:SetCode(EFFECT_INDESTRUCTABLE_EFFECT)
-            e2:SetValue(1)
-            e2:SetReset(RESET_EVENT+RESETS_STANDARD)
-            tc:RegisterEffect(e2)
-            affected_cards[tc]=true
-            tc:RegisterFlagEffect(id,RESET_EVENT+RESETS_STANDARD,0,0)
-        end
-    end
+    return c:IsSetCard(0x5bc) and c:IsType(TYPE_NORMAL)
 end
 
 function s.srchcon(e,tp,eg,ep,ev,re,r,rp)
