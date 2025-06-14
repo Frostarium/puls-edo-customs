@@ -86,6 +86,7 @@ function s.gyop(e,tp,eg,ep,ev,re,r,rp)
         e1:SetCountLimit(1)
         e1:SetTarget(s.rth_tg)
         e1:SetOperation(s.rth_op)
+        e1:SetReset(RESET_EVENT+RESETS_STANDARD)
         tc:RegisterEffect(e1)
     end
 end
