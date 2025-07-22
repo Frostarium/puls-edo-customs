@@ -111,7 +111,7 @@ function s.ctrlcost(e,tp,eg,ep,ev,re,r,rp,chk)
 end
 
 function s.ctrlfilter2(c,e,tp)
-    return c:IsMonster() and c:IsControler(1-tp) and c:IsCanBeEffectTarget(e) and c:IsControlable()
+    return c:IsMonster() and c:IsControler(1-tp) and c:IsCanBeEffectTarget(e) and c:IsControlerCanBeChanged()
 end
 
 function s.ctrltg(e,tp,eg,ep,ev,re,r,rp,chk)
