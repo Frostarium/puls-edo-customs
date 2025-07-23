@@ -14,7 +14,8 @@ function s.initial_effect(c)
 	e2:SetRange(LOCATION_SZONE)
 	e2:SetHintTiming(0,TIMING_MAIN_END|TIMINGS_CHECK_MONSTER)
 	e2:SetCountLimit(1,id)
-	e2:SetCondition(function(e,tp) return Duel.IsMainPhase() and Duel.GetCustomActivityCount(id,1-tp,ACTIVITY_CHAIN)>0 end)
+	e2:SetCondition(function(e,tp) return Duel.GetCustomActivityCount(id,1-tp,ACTIVITY_CHAIN)>0 
+		or Duel.GetFlagEffect(1-tp,id)>0 end)
 	e2:SetTarget(s.copytg)
 	e2:SetOperation(s.copyop)
 	c:RegisterEffect(e2)
@@ -23,28 +24,50 @@ function s.initial_effect(c)
 	local e3=Effect.CreateEffect(c)
 	e3:SetDescription(aux.Stringid(id,1))
 	e3:SetCategory(CATEGORY_SPECIAL_SUMMON)
-	e3:SetType(EFFECT_TYPE_IGNITION)
+	e3:SetType(EFFECT_TYPE_QUICK_O)
+	e3:SetCode(EVENT_FREE_CHAIN)
+	e3:SetHintTiming(0,TIMING_END_PHASE)
 	e3:SetRange(LOCATION_SZONE)
 	e3:SetCondition(s.spcon)
 	e3:SetCost(s.spcost)
 	e3:SetTarget(s.sptg)
 	e3:SetOperation(s.spop)
 	c:RegisterEffect(e3)
+	--Track card additions
+	local ge1=Effect.CreateEffect(c)
+	ge1:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
+	ge1:SetCode(EVENT_TO_HAND)
+	ge1:SetOperation(s.checkop)
+	Duel.RegisterEffect(ge1,0)
 end
 
 function s.chainfilter(re,tp,cid)
-    return not (re:GetActivateLocation()==LOCATION_HAND)
+    return not (re:GetActivateLocation()==LOCATION_HAND and re:IsMonsterEffect())
+end
+
+function s.checkop(e,tp,eg,ep,ev,re,r,rp)
+    if not re or re:GetHandler():IsCode(id) then return end
+    if ep~=tp and not Duel.GetCurrentPhase()==PHASE_DRAW then
+        Duel.RegisterFlagEffect(ep,id,RESET_PHASE+PHASE_END,0,1)
+    end
+end
+
+function s.copyfilter(c)
+    return c:IsMonster() and c:IsFaceup()
 end
 
 function s.copytg(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return true end
+    if chk==0 then return Duel.GetLocationCount(tp,LOCATION_MZONE)>0
+        and (Duel.IsExistingMatchingCard(s.copyfilter,tp,0,LOCATION_MZONE,1,nil)
+        or Duel.IsExistingMatchingCard(s.copyfilter,tp,0,LOCATION_GRAVE,1,nil)) end
+    Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,0)
 end
 
 function s.copyop(e,tp,eg,ep,ev,re,r,rp)
     if not e:GetHandler():IsRelateToEffect(e) then return end
-    local g1=Duel.GetFieldGroup(tp,0,LOCATION_HAND)
-    local g2=Duel.GetFieldGroup(tp,0,LOCATION_GRAVE)
-    if #g1>0 then Duel.ConfirmCards(tp,g1) end
+    if Duel.GetLocationCount(tp,LOCATION_MZONE)<=0 then return end
+    local g1=Duel.GetMatchingGroup(s.copyfilter,tp,0,LOCATION_MZONE,nil)
+    local g2=Duel.GetMatchingGroup(s.copyfilter,tp,0,LOCATION_GRAVE,nil)
     if #g1<=0 and #g2<=0 then return end
     local sg=Group.CreateGroup()
     local b1=#g1>0
@@ -62,10 +85,18 @@ function s.copyop(e,tp,eg,ep,ev,re,r,rp)
     if #sg>0 then
         local tc=sg:GetFirst()
         local token=Duel.CreateToken(tp,tc:GetCode())
-        Duel.SendtoHand(token,nil,REASON_EFFECT)
-        Duel.ConfirmCards(1-tp,token)
+        if Duel.SpecialSummon(token,0,tp,tp,false,false,POS_FACEUP)~=0 then
+            local e1=Effect.CreateEffect(e:GetHandler())
+            e1:SetType(EFFECT_TYPE_SINGLE)
+            e1:SetCode(EFFECT_SET_BASE_ATTACK)
+            e1:SetValue(3000)
+            e1:SetReset(RESET_EVENT+RESETS_STANDARD)
+            token:RegisterEffect(e1)
+            local e2=e1:Clone()
+            e2:SetCode(EFFECT_SET_BASE_DEFENSE)
+            token:RegisterEffect(e2)
+        end
     end
-    if #g1>0 then Duel.ShuffleHand(1-tp) end
 end
 
 function s.namefilter(c,code)
