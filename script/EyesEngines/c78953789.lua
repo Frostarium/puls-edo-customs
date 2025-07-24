@@ -12,6 +12,7 @@ function s.initial_effect(c)
 	e2:SetCategory(CATEGORY_SPECIAL_SUMMON)
 	e2:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
 	e2:SetCode(EVENT_SUMMON_SUCCESS)
+	e2:SetCountLimit(2)
 	e2:SetRange(LOCATION_FZONE)
 	e2:SetProperty(EFFECT_FLAG_DELAY)
 	e2:SetTarget(s.target)
@@ -20,6 +21,18 @@ function s.initial_effect(c)
 	local e3=e2:Clone()
 	e3:SetCode(EVENT_SPSUMMON_SUCCESS)
 	c:RegisterEffect(e3)
+	--Set this card
+	local e4=Effect.CreateEffect(c)
+	e4:SetDescription(aux.Stringid(id,1))
+	e4:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
+	e4:SetProperty(EFFECT_FLAG_DELAY,EFFECT_FLAG2_CHECK_SIMULTANEOUS)
+	e4:SetCode(EVENT_DESTROYED)
+	e4:SetRange(LOCATION_GRAVE)
+	e4:SetCountLimit(1,{id,1})
+	e4:SetCondition(s.setcon)
+	e4:SetTarget(s.settg)
+	e4:SetOperation(s.setop)
+	c:RegisterEffect(e4)
 end
 
 function s.filter(c,tp)
@@ -46,11 +59,12 @@ function s.operation(e,tp,eg,ep,ev,re,r,rp)
 			local e1=Effect.CreateEffect(e:GetHandler())
 			e1:SetType(EFFECT_TYPE_SINGLE)
 			e1:SetCode(EFFECT_SET_BASE_ATTACK)
-			e1:SetValue(tc:GetBaseAttack()/2)
+			e1:SetValue(tc:GetBaseAttack()*3/4)
 			e1:SetReset(RESET_EVENT+RESETS_STANDARD)
 			token:RegisterEffect(e1)
 			local e2=e1:Clone()
 			e2:SetCode(EFFECT_SET_BASE_DEFENSE)
+			e2:SetValue(tc:GetBaseDefense()*3/4)
 			token:RegisterEffect(e2)
 			--Copy Xyz materials if applicable
 			if token:IsType(TYPE_XYZ) and tc:IsType(TYPE_XYZ) and tc:GetOverlayCount()>0 then
@@ -67,5 +81,23 @@ function s.operation(e,tp,eg,ep,ev,re,r,rp)
 				end
 			end
 		end
+	end
+end
+function s.setconfilter(c,tp)
+	return c:IsReason(REASON_BATTLE|REASON_EFFECT)
+		and c:GetPreviousControler()==tp and c:IsPreviousLocation(LOCATION_ONFIELD)
+end
+function s.setcon(e,tp,eg,ep,ev,re,r,rp)
+	return rp==1-tp and not eg:IsContains(e:GetHandler()) and eg:IsExists(s.setconfilter,1,nil,tp)
+end
+function s.settg(e,tp,eg,ep,ev,re,r,rp,chk)
+	local c=e:GetHandler()
+	if chk==0 then return c:IsSSetable() end
+	Duel.SetOperationInfo(0,CATEGORY_LEAVE_GRAVE,c,1,tp,0)
+end
+function s.setop(e,tp,eg,ep,ev,re,r,rp)
+	local c=e:GetHandler()
+	if c:IsRelateToEffect(e) then
+		Duel.MoveToField(c,tp,tp,LOCATION_FZONE,POS_FACEUP,true)
 	end
 end

@@ -16,6 +16,7 @@ function s.initial_effect(c)
 	e2:SetCategory(CATEGORY_SPECIAL_SUMMON)
 	e2:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
 	e2:SetCode(EVENT_TO_HAND)
+    e2:SetCountLimit(2,{id,0})
 	e2:SetRange(LOCATION_SZONE)
 	e2:SetCondition(function(e,tp,eg,ep,ev,re,r,rp) return eg:IsExists(Card.IsControler,1,nil,1-tp) and not Duel.IsPhase(PHASE_DRAW) end)
 	e2:SetTarget(s.target)
@@ -32,9 +33,9 @@ function s.initial_effect(c)
 	e4:SetType(EFFECT_TYPE_QUICK_O)
 	e4:SetCode(EVENT_FREE_CHAIN)
 	e4:SetHintTiming(0,TIMING_END_PHASE)
+    e4:SetCountLimit(1,{id,1})
 	e4:SetRange(LOCATION_SZONE)
 	e4:SetCondition(s.spcon)
-	e4:SetCost(s.spcost)
 	e4:SetTarget(s.sptg)
 	e4:SetOperation(s.spop)
 	c:RegisterEffect(e4)
@@ -62,7 +63,8 @@ function s.operation(e,tp,eg,ep,ev,re,r,rp)
 	if not tc then return end
 	if Duel.GetLocationCount(tp,LOCATION_MZONE)<=0 then return end
 	local token=Duel.CreateToken(tp,tc:GetCode())
-	if Duel.SpecialSummon(token,0,tp,tp,false,false,POS_FACEUP)~=0 then
+     if Duel.SpecialSummon(token,tc:GetSummonType(),tp,tp,true,true,POS_FACEUP)~=0 then
+	token:CompleteProcedure()
 		local e1=Effect.CreateEffect(e:GetHandler())
 		e1:SetType(EFFECT_TYPE_SINGLE)
 		e1:SetCode(EFFECT_SET_BASE_ATTACK)
@@ -96,16 +98,12 @@ function s.spcon(e,tp,eg,ep,ev,re,r,rp)
 		if not checked[tc:GetCode()] then
 			checked[tc:GetCode()]=true
 			local count=g:FilterCount(s.namefilter,nil,tc:GetCode())
-			if count>=4 then return true end
+			if count>=5 then return true end
 		end
 	end
 	return false
 end
 
-function s.spcost(e,tp,eg,ep,ev,re,r,rp,chk)
-    if chk==0 then return e:GetHandler():IsAbleToGraveAsCost() end
-    Duel.SendtoGrave(e:GetHandler(),REASON_COST)
-end
 
 function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return Duel.GetLocationCount(tp,LOCATION_MZONE)>0 end
@@ -121,7 +119,8 @@ function s.spop(e,tp,eg,ep,ev,re,r,rp)
         local tc=g:Select(tp,1,1,nil):GetFirst()
         if tc then
             local token=Duel.CreateToken(tp,tc:GetCode())
-            if Duel.SpecialSummon(token,0,tp,tp,true,true,POS_FACEUP)~=0 then
+            if Duel.SpecialSummon(token,tc:GetSummonType(),tp,tp,true,true,POS_FACEUP)~=0 then
+			token:CompleteProcedure()
                 if token:IsType(TYPE_XYZ) then
                     local mats=Group.CreateGroup()
                     for i=1,2 do
@@ -138,4 +137,7 @@ function s.spop(e,tp,eg,ep,ev,re,r,rp)
         end
         Duel.ShuffleExtra(1-tp)
     end
+end
+function s.namefilter(c,code)
+	return c:IsFaceup() and c:IsCode(code)
 end

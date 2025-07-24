@@ -19,6 +19,16 @@ function s.initial_effect(c)
 	e2:SetTarget(s.target)
 	e2:SetOperation(s.activate)
 	c:RegisterEffect(e2)
+	local e3=Effect.CreateEffect(c)
+	e3:SetDescription(aux.Stringid(id,1))
+	e3:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
+	e3:SetType(EFFECT_TYPE_IGNITION)
+	e3:SetRange(LOCATION_GRAVE)
+	e3:SetCountLimit(1,{id,1})
+	e3:SetCost(Cost.SelfBanish)
+	e3:SetTarget(s.thtg)
+	e3:SetOperation(s.thop)
+	c:RegisterEffect(e3)
 end
 
 function s.condition1(e,tp,eg,ep,ev,re,r,rp)
@@ -61,7 +71,8 @@ function s.activate(e,tp,eg,ep,ev,re,r,rp)
 	--Create copy
 	if Duel.GetLocationCount(tp,LOCATION_MZONE)<=0 then return end
 	local token=Duel.CreateToken(tp,tc:GetCode())
-	if Duel.SpecialSummon(token,0,tp,tp,true,true,POS_FACEUP)~=0 then
+	if Duel.SpecialSummon(token,tc:GetSummonType(),tp,tp,true,true,POS_FACEUP)~=0 then
+			token:CompleteProcedure()
 		--Destroy during End Phase
 		local e4=Effect.CreateEffect(e:GetHandler())
 		e4:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
@@ -71,5 +82,36 @@ function s.activate(e,tp,eg,ep,ev,re,r,rp)
 		e4:SetReset(RESET_EVENT+RESETS_STANDARD+RESET_PHASE+PHASE_END)
 		e4:SetCountLimit(1)
 		token:RegisterEffect(e4)
+		--Copy Xyz materials if applicable
+			if token:IsType(TYPE_XYZ) and tc:IsType(TYPE_XYZ) and tc:GetOverlayCount()>0 then
+				local og=tc:GetOverlayGroup()
+				local mg=Group.CreateGroup()
+				for oc in aux.Next(og) do
+					local mat=Duel.CreateToken(tp,oc:GetCode())
+					if Duel.Remove(mat,POS_FACEUP,REASON_EFFECT)~=0 then
+						mg:AddCard(mat)
+					end
+				end
+				if #mg>0 then
+					Duel.Overlay(token,mg)
+				end
+			end
+		end
+	end
+function s.thfilter(c)
+	return c:IsSetCard(0x1843) and c:IsAbleToHand() and not c:IsCode(id)
+end
+
+function s.thtg(e,tp,eg,ep,ev,re,r,rp,chk)
+	if chk==0 then return Duel.IsExistingMatchingCard(s.thfilter,tp,LOCATION_DECK,0,1,nil) end
+	Duel.SetOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_DECK)
+end
+
+function s.thop(e,tp,eg,ep,ev,re,r,rp)
+	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
+	local g=Duel.SelectMatchingCard(tp,s.thfilter,tp,LOCATION_DECK,0,1,1,nil)
+	if #g>0 then
+		Duel.SendtoHand(g,nil,REASON_EFFECT)
+		Duel.ConfirmCards(1-tp,g)
 	end
 end
