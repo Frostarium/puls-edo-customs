@@ -15,6 +15,7 @@ function s.initial_effect(c)
 	e2:SetCountLimit(2)
 	e2:SetRange(LOCATION_FZONE)
 	e2:SetProperty(EFFECT_FLAG_DELAY)
+	e2:SetCondition(s.repcon)
 	e2:SetTarget(s.target)
 	e2:SetOperation(s.operation)
 	c:RegisterEffect(e2)
@@ -34,7 +35,12 @@ function s.initial_effect(c)
 	e4:SetOperation(s.setop)
 	c:RegisterEffect(e4)
 end
-
+function s.repcon(e,tp,eg,ep,ev,re,r,rp)
+	return Duel.IsExistingMatchingCard(s.repfilter,e:GetHandlerPlayer(),LOCATION_ONFIELD,0,3,nil)
+end
+function s.repfilter(c)
+	return c:IsFaceup() and c:IsSetCard(0x1843)
+end
 function s.filter(c,tp)
 	return c:IsFaceup() and c:IsControler(1-tp)
 end
@@ -59,12 +65,12 @@ function s.operation(e,tp,eg,ep,ev,re,r,rp)
 			local e1=Effect.CreateEffect(e:GetHandler())
 			e1:SetType(EFFECT_TYPE_SINGLE)
 			e1:SetCode(EFFECT_SET_BASE_ATTACK)
-			e1:SetValue(tc:GetBaseAttack()*3/4)
+			e1:SetValue(tc:GetBaseAttack()-100)
 			e1:SetReset(RESET_EVENT+RESETS_STANDARD)
 			token:RegisterEffect(e1)
 			local e2=e1:Clone()
 			e2:SetCode(EFFECT_SET_BASE_DEFENSE)
-			e2:SetValue(tc:GetBaseDefense()*3/4)
+			e2:SetValue(tc:GetBaseDefense()-100)
 			token:RegisterEffect(e2)
 			--Copy Xyz materials if applicable
 			if token:IsType(TYPE_XYZ) and tc:IsType(TYPE_XYZ) and tc:GetOverlayCount()>0 then
