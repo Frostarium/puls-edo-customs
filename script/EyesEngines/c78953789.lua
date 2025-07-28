@@ -36,7 +36,7 @@ function s.initial_effect(c)
 	c:RegisterEffect(e4)
 end
 function s.repcon(e,tp,eg,ep,ev,re,r,rp)
-	return Duel.IsExistingMatchingCard(s.repfilter,e:GetHandlerPlayer(),LOCATION_ONFIELD,0,3,nil)
+	return Duel.IsExistingMatchingCard(s.repfilter,e:GetHandlerPlayer(),LOCATION_ONFIELD,0,2,nil)
 end
 function s.repfilter(c)
 	return c:IsFaceup() and c:IsSetCard(0x1843)
