@@ -15,21 +15,23 @@ end
 function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return true end
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_CARDTYPE)
-	Duel.SetTargetParam(Duel.SelectOption(tp,1057,1056,1063,1073,1074,1076))
+	Duel.SetTargetParam(Duel.SelectOption(tp,1054,1055,1057,1056,1063,1073,1074,1076))
 end
 function s.operation(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 	local opt=Duel.GetChainInfo(0,CHAININFO_TARGET_PARAM)
 	local ct=nil
-	if opt==0 then ct=TYPE_RITUAL end
-	if opt==1 then ct=TYPE_FUSION end
-	if opt==2 then ct=TYPE_SYNCHRO end
-	if opt==3 then ct=TYPE_XYZ end
-	if opt==4 then ct=TYPE_PENDULUM end
-    if opt==5 then ct=TYPE_LINK end
+	if opt==0 then ct=TYPE_NORMAL end
+	if opt==1 then ct=TYPE_EFFECT end
+	if opt==2 then ct=TYPE_RITUAL end
+	if opt==3 then ct=TYPE_FUSION end
+	if opt==4 then ct=TYPE_SYNCHRO end
+	if opt==5 then ct=TYPE_XYZ end
+	if opt==6 then ct=TYPE_PENDULUM end
+    if opt==7 then ct=TYPE_LINK end
 	--Cannot Special Summon monsters of the declared type
 	local e1=Effect.CreateEffect(c)
-	e1:SetDescription(aux.Stringid(id,6))
+	e1:SetDescription(aux.Stringid(id,8))
 	e1:SetType(EFFECT_TYPE_FIELD)
 	e1:SetProperty(EFFECT_FLAG_PLAYER_TARGET+EFFECT_FLAG_CLIENT_HINT)
 	e1:SetCode(EFFECT_CANNOT_SPECIAL_SUMMON)
