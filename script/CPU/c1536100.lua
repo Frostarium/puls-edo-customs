@@ -26,40 +26,19 @@ function s.initial_effect(c)
 	e3:SetTarget(s.thtg)
 	e3:SetOperation(s.thop)
 	c:RegisterEffect(e3)
-	-- Send 1 card to GY when 1536101 activates its effect
 	local e4=Effect.CreateEffect(c)
-	e4:SetDescription(aux.Stringid(id,2))
+	e4:SetDescription(aux.Stringid(id,1))
 	e4:SetCategory(CATEGORY_TOGRAVE)
 	e4:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
-	e4:SetProperty(EFFECT_FLAG_CARD_TARGET+EFFECT_FLAG_DELAY)
-	e4:SetCode(EVENT_CHAINING)
+	e4:SetCode(EVENT_PHASE+PHASE_END)
 	e4:SetRange(LOCATION_FZONE)
-	e4:SetCountLimit(1,id+100)
-	e4:SetCondition(s.tgcon)
-	e4:SetTarget(s.tgtg)
-	e4:SetOperation(s.tgop)
+	e4:SetCountLimit(1,{id,2})
+	e4:SetCondition(s.setcon)
+	e4:SetTarget(s.settg)
+	e4:SetOperation(s.setop)
 	c:RegisterEffect(e4)
 end
 
-function s.tgcon(e,tp,eg,ep,ev,re,r,rp)
-	local p,code1,code2=Duel.GetChainInfo(0,CHAININFO_TRIGGERING_CONTROLER,CHAININFO_TRIGGERING_CODE,CHAININFO_TRIGGERING_CODE2)
-	return p==tp and (code1==1536101 or code2==1536101)
-end
-
-function s.tgtg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
-	if chkc then return chkc:IsOnField() end
-	if chk==0 then return Duel.IsExistingTarget(nil,tp,LOCATION_ONFIELD,LOCATION_ONFIELD,1,nil) end
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TOGRAVE)
-	local g=Duel.SelectTarget(tp,nil,tp,LOCATION_ONFIELD,LOCATION_ONFIELD,1,1,nil)
-	Duel.SetOperationInfo(0,CATEGORY_TOGRAVE,g,1,0,0)
-end
-
-function s.tgop(e,tp,eg,ep,ev,re,r,rp)
-	local tc=Duel.GetFirstTarget()
-	if tc and tc:IsRelateToEffect(e) then
-		Duel.SendtoGrave(tc,REASON_EFFECT)
-	end
-end
 	
 function s.immval(e,re)
 local c=e:GetHandler()
@@ -82,5 +61,22 @@ function s.thop(e,tp,eg,ep,ev,re,r,rp)
 	if #g>0 then
 		Duel.SendtoHand(g,nil,REASON_EFFECT)
 		Duel.ConfirmCards(1-tp,g)
+	end
+end
+function s.setcon(e,tp,eg,ep,ev,re,r,rp)
+	return Duel.IsTurnPlayer(tp)
+		and Duel.IsExistingMatchingCard(aux.FaceupFilter(Card.IsCode,1536101),tp,LOCATION_MZONE,0,1,nil)
+end
+function s.setfilter(c)
+	return c:IsSetCard(0x1456) and c:IsSpell() and c:IsType(TYPE_NORMAL)
+	end
+function s.settg(e,tp,eg,ep,ev,re,r,rp,chk)
+	if chk==0 then return Duel.IsExistingMatchingCard(s.setfilter,tp,LOCATION_DECK,0,1,nil) end
+end
+function s.setop(e,tp,eg,ep,ev,re,r,rp)
+	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SET)
+	local g=Duel.SelectMatchingCard(tp,s.setfilter,tp,LOCATION_DECK,0,1,1,nil)
+	if #g>0 then
+		Duel.SendtoGrave(g,REASON_EFFECT)
 	end
 end

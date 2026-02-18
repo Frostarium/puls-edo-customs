@@ -25,9 +25,9 @@ function s.initial_effect(c)
     e3:SetDescription(aux.Stringid(id,2))
     e3:SetType(EFFECT_TYPE_QUICK_O)
     e3:SetCode(EVENT_FREE_CHAIN)
+	e3:SetProperty(EFFECT_FLAG_CARD_TARGET)
     e3:SetRange(LOCATION_MZONE)
     e3:SetCountLimit(1,{id,1})
-    e3:SetCondition(s.spellcon)
     e3:SetTarget(s.spelltg)
     e3:SetOperation(s.spellop)
     c:RegisterEffect(e3)
@@ -46,13 +46,6 @@ function s.hspop(e,tp,eg,ep,ev,re,r,rp)
 	if c:IsRelateToEffect(e) then
 		Duel.SpecialSummon(c,0,tp,tp,false,false,POS_FACEUP)
 	end
-end
-
-function s.spellcon(e,tp,eg,ep,ev,re,r,rp)
-	if rp==tp then return false end
-	local ex_target=Duel.GetChainInfo(ev,CHAININFO_TARGET_CARDS)
-	if not ex_target then return false end
-	return ex_target:IsExists(function(tc) return tc:IsControler(tp) and tc:IsSetCard(0x1456) end,1,nil) and Duel.IsExistingMatchingCard(aux.FaceupFilter(Card.IsCode,1536101),tp,LOCATION_ONFIELD,0,1,nil)
 end
 function s.spell_filter(c,tp)
 	return c:IsSetCard(0x1456) and c:IsType(TYPE_SPELL) and c:IsType(TYPE_NORMAL) and c:IsAbleToHand() and c:IsControler(tp)
