@@ -42,10 +42,10 @@ end
 	
 function s.immval(e,re)
 local c=e:GetHandler()
-	if not (re:IsActivated() and c:IsLinkSummoned() and e:GetOwnerPlayer()==1-re:GetOwnerPlayer()) then return false end
+	if not (re:IsActivated() and e:GetOwnerPlayer()==1-re:GetOwnerPlayer()) then return false end
 	if not re:IsHasProperty(EFFECT_FLAG_CARD_TARGET) then return true end
-	local g=Duel.GetChainInfo(0,CHAININFO_TARGET_CARDS)
-	return not g or not g:IsContains(c)
+	local tg=Duel.GetChainInfo(0,CHAININFO_TARGET_CARDS)
+	return not (tg and tg:IsContains(e:GetHandler()))
 end
 function s.thfilter(c)
 	return c:IsSetCard(0x1456) and c:IsAbleToHand()

@@ -22,12 +22,15 @@ function s.cost(e,tp,eg,ep,ev,re,r,rp,chk)
 end
 
 function s.activate(e,tp,eg,ep,ev,re,r,rp)
-	local g=Duel.GetMatchingGroup(aux.FaceupFilter(Card.IsNegatable),tp,0,LOCATION_ONFIELD,nil)
-	if #g==0 then return end
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_FACEUP)
-	local sg=g:Select(tp,1,1,nil)
-	local tc=sg:GetFirst()
-	if tc and s.negate(tc) then
+	local sc=tc
+	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_NEGATE)
+	local tc=Duel.SelectMatchingCard(tp,Card.IsNegatable,tp,0,LOCATION_ONFIELD,1,1,nil):GetFirst()
+	if not tc then return end
+	if tc:IsCanBeDisabledByEffect(e) then 
+		--Negate its effects
+		tc:NegateEffects(e:GetHandler(),nil,true)
+		Duel.AdjustInstantly(tc)
+			if tc:IsDisabled() then
 		-- Schedule banish at End Phase if still on field
 		local e1=Effect.CreateEffect(e:GetHandler())
 		e1:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
@@ -38,33 +41,16 @@ function s.activate(e,tp,eg,ep,ev,re,r,rp)
 		e1:SetOperation(s.rmop)
 		e1:SetReset(RESET_PHASE+PHASE_END)
 		Duel.RegisterEffect(e1,tp)
+
 	end
 end
-
-function s.negate(tc)
-	if not tc or not tc:IsFaceup() or tc:IsDisabled() then return false end
-	local e1=Effect.CreateEffect(e:GetHandler())
-			e1:SetType(EFFECT_TYPE_SINGLE)
-			e1:SetProperty(EFFECT_FLAG_CANNOT_DISABLE)
-			e1:SetCode(EFFECT_DISABLE)
-			e1:SetReset(RESETS_STANDARD)
-			tc:RegisterEffect(e1)
-			local e2=Effect.CreateEffect(e:GetHandler())
-			e2:SetType(EFFECT_TYPE_SINGLE)
-			e2:SetProperty(EFFECT_FLAG_CANNOT_DISABLE)
-			e2:SetCode(EFFECT_DISABLE_EFFECT)
-			e2:SetValue(RESET_TURN_SET)
-			e2:SetReset(RESETS_STANDARD)
-			tc:RegisterEffect(e2)
-	return true
 end
-
 function s.rmcon(e,tp,eg,ep,ev,re,r,rp)
 	local tc=e:GetLabelObject()
 	return tc and tc:IsOnField() and tc:IsFaceup()
 end
 
-function s.rmop(e,tp,eg,ep,ev,re,r,rp)
+function s.rmop(e,tp,eg,ep,ev,re,r,rps)
 	local tc=e:GetLabelObject()
 	if tc and tc:IsOnField() and tc:IsFaceup() then
 		Duel.Remove(tc,POS_FACEDOWN,REASON_EFFECT)

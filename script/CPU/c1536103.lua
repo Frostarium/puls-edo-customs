@@ -28,6 +28,7 @@ function s.initial_effect(c)
 	e3:SetProperty(EFFECT_FLAG_CARD_TARGET)
     e3:SetRange(LOCATION_MZONE)
     e3:SetCountLimit(1,{id,1})
+	e3:SetCondition(s.spellcon)
     e3:SetTarget(s.spelltg)
     e3:SetOperation(s.spellop)
     c:RegisterEffect(e3)
@@ -68,4 +69,7 @@ function s.spellop(e,tp,eg,ep,ev,re,r,rp)
 			if op then op(te,tp,eg,ep,ev,re,r,rp) end
 		end
 	end
+end
+function s.spellcon(e,tp,eg,ep,ev,re,r,rp)
+	return Duel.IsExistingMatchingCard(aux.FaceupFilter(Card.IsCode,1536101),tp,LOCATION_ONFIELD,0,1,nil)
 end
