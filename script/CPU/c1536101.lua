@@ -8,6 +8,7 @@ function s.initial_effect(c)
 	e1:SetCode(EFFECT_SPSUMMON_PROC)
 	e1:SetProperty(EFFECT_FLAG_UNCOPYABLE)
 	e1:SetRange(LOCATION_HAND+LOCATION_GRAVE)
+	e1:SetCountLimit(1,{id,0})
 	e1:SetCondition(s.sprcon)
 	c:RegisterEffect(e1)
     --Special summon a CPU
@@ -60,7 +61,7 @@ function s.spellcon(e,tp,eg,ep,ev,re,r,rp)
 	return rp==1-tp and not e:GetHandler():IsStatus(STATUS_BATTLE_DESTROYED)
 end
 function s.spell_filter(c,tp)
-	return c:IsSetCard(0x1456) and c:IsType(TYPE_SPELL) and c:IsType(TYPE_NORMAL) and c:IsAbleToHand() and c:IsControler(tp)
+	return c:IsSetCard(0x1456) and c:IsType(TYPE_SPELL) and c:IsNormalSpell() and c:IsAbleToHand() and c:IsControler(tp) and c:CheckActivateEffect(false,true,false)~=nil 
 end
 function s.spelltg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
 	if chk==0 then return Duel.IsExistingMatchingCard(s.spell_filter,tp,LOCATION_GRAVE,0,1,nil,tp) end
@@ -70,6 +71,8 @@ function s.spelltg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
 end
 function s.spellop(e,tp,eg,ep,ev,re,r,rp)
 	local tc=Duel.GetFirstTarget()
+	tc:CheckActivateEffect(false,true,true)
+	if not tc then return end
 	if tc and tc:IsRelateToEffect(e) then
 		-- Apply the effect of the selected spell card as if it were activated
 		local te=tc:GetActivateEffect()

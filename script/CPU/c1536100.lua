@@ -13,7 +13,7 @@ function s.initial_effect(c)
 	e2:SetCode(EFFECT_IMMUNE_EFFECT)
 	e2:SetRange(LOCATION_FZONE)
 	e2:SetTargetRange(LOCATION_MZONE,0)
-	e2:SetTarget(aux.TargetBoolFunction(Card.IsSetCard,0x1456))
+	e2:SetTarget(s.indestg)
 	e2:SetValue(s.immval)
 	c:RegisterEffect(e2)
 	--Search 1 "CPU" card
@@ -22,7 +22,7 @@ function s.initial_effect(c)
 	e3:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
 	e3:SetType(EFFECT_TYPE_IGNITION)
 	e3:SetRange(LOCATION_FZONE)
-	e3:SetCountLimit(1,id)
+	e3:SetCountLimit(1,{id,1})
 	e3:SetTarget(s.thtg)
 	e3:SetOperation(s.thop)
 	c:RegisterEffect(e3)
@@ -39,13 +39,14 @@ function s.initial_effect(c)
 	c:RegisterEffect(e4)
 end
 
+function s.indestg(e,c)
+	return c:IsSetCard(0x1456) and c:IsMonster()
+end
 	
 function s.immval(e,re)
-local c=e:GetHandler()
 	if not (re:IsActivated() and e:GetOwnerPlayer()==1-re:GetOwnerPlayer()) then return false end
 	if not re:IsHasProperty(EFFECT_FLAG_CARD_TARGET) then return true end
-	local tg=Duel.GetChainInfo(0,CHAININFO_TARGET_CARDS)
-	return not (tg and tg:IsContains(e:GetHandler()))
+	Duel.GetChainInfo(0,CHAININFO_TARGET_CARDS)
 end
 function s.thfilter(c)
 	return c:IsSetCard(0x1456) and c:IsAbleToHand()
@@ -68,7 +69,7 @@ function s.setcon(e,tp,eg,ep,ev,re,r,rp)
 		and Duel.IsExistingMatchingCard(aux.FaceupFilter(Card.IsCode,1536101),tp,LOCATION_MZONE,0,1,nil)
 end
 function s.setfilter(c)
-	return c:IsSetCard(0x1456) and c:IsSpell() and c:IsType(TYPE_NORMAL)
+	return c:IsSetCard(0x1456) and c:IsSpell() and c:IsNormalSpell()
 	end
 function s.settg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return Duel.IsExistingMatchingCard(s.setfilter,tp,LOCATION_DECK,0,1,nil) end

@@ -1,69 +1,59 @@
 --CPU Reflect Barrier
-local s,id=GetID()
+local s, id = GetID()
 function s.initial_effect(c)
-	--Activate
-	local e1=Effect.CreateEffect(c)
-	e1:SetType(EFFECT_TYPE_ACTIVATE)
-	e1:SetCode(EVENT_FREE_CHAIN)
-	c:RegisterEffect(e1)
-	-- Effect 1: Redirect target
-	local e2=Effect.CreateEffect(c)
-	e2:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
-	e2:SetCode(EVENT_CHAIN_SOLVING)
+	local e1 = Effect.CreateEffect(c)
+    e1:SetType(EFFECT_TYPE_ACTIVATE)
+    e1:SetCode(EVENT_FREE_CHAIN)	
+    c:RegisterEffect(e1)
+	local e2 = Effect.CreateEffect(c)
+	e2:SetType(EFFECT_TYPE_QUICK_O)
+	e2:SetCode(EVENT_CHAINING)
 	e2:SetRange(LOCATION_SZONE)
-    e2:SetCountLimit(1,{id,0})
-	e2:SetCondition(s.redircon)
-	e2:SetOperation(s.redirop)
+    e2:SetCountLimit(1)
+	e2:SetCondition(s.cpcon)
+	e2:SetTarget(s.cptarget)
+	e2:SetOperation(s.cpop)
 	c:RegisterEffect(e2)
-
-	-- Effect 2: Discard 1 to draw 2 (once per turn)
-	local e3=Effect.CreateEffect(c)
-	e3:SetDescription(aux.Stringid(id,0))
-	e3:SetCategory(CATEGORY_DRAW+CATEGORY_HANDES)
-	e3:SetType(EFFECT_TYPE_IGNITION)
-	e3:SetRange(LOCATION_SZONE)
-	e3:SetCountLimit(1,{id,1})
-	e3:SetCost(s.drcost)
-	e3:SetTarget(s.drtg)
-	e3:SetOperation(s.drop)
-	c:RegisterEffect(e3)
 end
-
--- Effect 1: Redirect
-function s.redircon(e,tp,eg,ep,ev,re,r,rp)
-	if rp~=1-tp or not re or not re:IsHasProperty(EFFECT_FLAG_CARD_TARGET) then return false end
+function s.cpcon (e,tp,eg,ep,ev,re,r,rp)
+	if not re:IsHasProperty(EFFECT_FLAG_CARD_TARGET) then return false end
 	local tg=Duel.GetChainInfo(ev,CHAININFO_TARGET_CARDS)
-	if not tg or #tg~=1 then return false end
-	local tc=tg:GetFirst()
-	return tc:IsControler(tp) and tc:IsOnField() and Duel.IsExistingMatchingCard(s.redirfilter,tp,LOCATION_ONFIELD,0,1,tc,re)
+	return tg and tg:IsExists(Card.IsOnField,1,nil) and Duel.IsChainNegatable(ev)
 end
-
-function s.redirfilter(c,re)
-	return c:IsFaceup() and re:IsHasProperty(EFFECT_FLAG_CARD_TARGET) and re:GetHandler():IsCanBeEffectTarget(re,c)
+function s.cptarget(e,tp,eg,ep,ev,re,r,rp,chk)
+	if chk==0 then return true end
+	Duel.SetOperationInfo(0,CATEGORY_NEGATE,eg,1,0,0)
 end
+function s.cpop(e,tp,eg,ep,ev,re,r,rp)
+    --negate the effect
+    if not Duel.NegateEffect(ev) then return end
 
-function s.redirop(e,tp,eg,ep,ev,re,r,rp)
-	local tg=Duel.GetChainInfo(ev,CHAININFO_TARGET_CARDS)
-	if not tg or #tg~=1 then return end
-	local oldtc=tg:GetFirst()
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TARGET)
-	local g=Duel.SelectMatchingCard(tp,s.redirfilter,tp,LOCATION_ONFIELD,0,1,1,oldtc,re)
-	if #g>0 then
-		Duel.ChangeTargetCard(ev,g)
-	end
-end
+    --retrieve the effect
+    local te=Duel.GetChainInfo(ev,CHAININFO_TRIGGERING_EFFECT)
+    if not te then return end
 
--- Effect 2: Discard 1 to draw 2
-function s.drcost(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.IsExistingMatchingCard(Card.IsDiscardable,tp,LOCATION_HAND,0,1,nil) end
-	Duel.DiscardHand(tp,Card.IsDiscardable,1,1,REASON_COST+REASON_DISCARD)
-end
+    local tg=te:GetTarget()
+    if tg then
+        --check activation legality
+        if not tg(te,tp,Group.CreateGroup(),PLAYER_NONE,0,e,REASON_EFFECT,PLAYER_NONE,0) then return end
+        --perform activation procedure
+        tg(te,tp,Group.CreateGroup(),PLAYER_NONE,0,e,REASON_EFFECT,PLAYER_NONE,1)
+    end
+    local tc=te:GetHandler()
+    Duel.BreakEffect()
+    tc:CreateEffectRelation(te)
+    Duel.BreakEffect()
+    local g=Duel.GetChainInfo(0,CHAININFO_TARGET_CARDS)
+    for etc in aux.Next(g) do
+        etc:CreateEffectRelation(te)
+    end
 
-function s.drtg(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.IsPlayerCanDraw(tp,2) end
-	Duel.SetOperationInfo(0,CATEGORY_DRAW,nil,0,tp,2)
-end
+    --perform the effect
+    local op=te:GetOperation()
+    if op then op(te,tp,Group.CreateGroup(),PLAYER_NONE,0,e,REASON_EFFECT,PLAYER_NONE,1) end
 
-function s.drop(e,tp,eg,ep,ev,re,r,rp)
-	Duel.Draw(tp,2,REASON_EFFECT)
+    tc:ReleaseEffectRelation(te)
+    for etc in aux.Next(g) do
+        etc:ReleaseEffectRelation(te)
+    end
 end
