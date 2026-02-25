@@ -18,7 +18,7 @@ end
 function s.cpcon (e,tp,eg,ep,ev,re,r,rp)
 	if not re:IsHasProperty(EFFECT_FLAG_CARD_TARGET) then return false end
 	local tg=Duel.GetChainInfo(ev,CHAININFO_TARGET_CARDS)
-	return tg and tg:IsExists(Card.IsOnField,1,nil) and Duel.IsChainNegatable(ev)
+	return tg and tg:IsExists(Card.IsOnField,1,nil) and Duel.IsChainNegatable(ev) and Duel.IsExistingMatchingCard(aux.FaceupFilter(Card.IsCode,1536100),tp,LOCATION_ONFIELD,0,1,nil) or Duel.IsExistingMatchingCard(aux.FaceupFilter(Card.IsCode,1536101),tp,LOCATION_ONFIELD,0,1,nil)   
 end
 function s.cptarget(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return true end

@@ -5,6 +5,7 @@ function s.initial_effect(c)
     c:EnableReviveLimit()
     Fusion.AddProcMix(c,true,true,aux.FilterBoolFunctionEx(Card.IsSetCard,0x35b),aux.FilterBoolFunctionEx(Card.IsSetCard,0x35b))
     Fusion.AddContactProc(c,s.contactfil,s.contactop,s.splimit,nil,nil,nil,false)
+    c:SetSPSummonOnce(id)
     --Add "Ruined" card from GY to hand
     local e2=Effect.CreateEffect(c)
     e2:SetDescription(aux.Stringid(id,0))
