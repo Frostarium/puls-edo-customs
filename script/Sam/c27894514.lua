@@ -11,6 +11,17 @@ function s.initial_effect(c)
 		e1:SetTarget(s.sptg)
 		e1:SetOperation(s.spop)
 		c:RegisterEffect(e1)
+		local e2=Effect.CreateEffect(c)
+		e2:SetDescription(aux.Stringid(id,0))
+		e2:SetCategory(CATEGORY_TOHAND)
+		e2:SetType(EFFECT_TYPE_IGNITION)
+		e2:SetProperty(EFFECT_FLAG_CARD_TARGET)
+		e2:SetRange(LOCATION_MZONE)
+		e2:SetCountLimit(1,id)
+		e2:SetTarget(s.tdtg)
+		e2:SetOperation(s.tdop)
+		c:RegisterEffect(e2)
+
 	end
 
 	function s.filter(c)
@@ -43,3 +54,65 @@ function s.initial_effect(c)
 			end
 		end
 	end
+
+--Effect: Target 2 cards in your GY of the same type (Monster, Spell, or Trap) but with different names, shuffle them into the Deck, then add 1 card of the same type but different name from Deck to hand
+
+function s.tdfilter(c,typ,exname,e)
+	return c:IsType(typ) and c:IsAbleToDeck() and c:IsCanBeEffectTarget(e) and (not exname or c:GetCode()~=exname)
+end
+
+function s.tdtg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
+	if chkc then return false end
+	local g=Duel.GetMatchingGroup(Card.IsAbleToDeck,tp,LOCATION_GRAVE,0,nil)
+	local found=false
+	local typ
+	for t=TYPE_MONSTER,TYPE_TRAP,TYPE_SPELL do
+		local tg=g:Filter(Card.IsType,nil,t)
+		if #tg>=2 then
+			for c1 in aux.Next(tg) do
+				for c2 in aux.Next(tg) do
+					if c1~=c2 and c1:GetCode()~=c2:GetCode() then
+						found=true typ=t break
+					end
+				end
+				if found then break end
+			end
+		end
+		if found then break end
+	end
+	if chk==0 then return found end
+	--Select 2 cards of same type but different names
+	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TODECK)
+	local tg1=g:Filter(Card.IsType,nil,typ)
+	local c1=tg1:Select(tp,1,1,nil):GetFirst()
+	local tg2=tg1:Filter(function(card) return card:GetCode()~=c1:GetCode() end,nil)
+	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TODECK)
+	local c2=tg2:Select(tp,1,1,nil):GetFirst()
+	local tg=Group.CreateGroup(); tg:AddCard(c1); tg:AddCard(c2)
+	Duel.SetTargetCard(tg)
+	Duel.SetOperationInfo(0,CATEGORY_TODECK,tg,2,0,0)
+	Duel.SetOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_DECK)
+end
+
+function s.tdop(e,tp,eg,ep,ev,re,r,rp)
+	local tg=Duel.GetTargetCards(e)
+	if #tg~=2 then return end
+	local typ=tg:GetFirst():GetType() & (TYPE_MONSTER+TYPE_SPELL+TYPE_TRAP)
+	if not (tg:GetFirst():IsType(typ) and tg:GetNext():IsType(typ)) then return end
+	local names={} for c in aux.Next(tg) do table.insert(names,c:GetCode()) end
+	if Duel.SendtoDeck(tg,nil,SEQ_DECKSHUFFLE,REASON_EFFECT)==2 then
+		Duel.BreakEffect()
+		local g=Duel.GetMatchingGroup(function(c)
+			return c:IsType(typ) and c:IsAbleToHand() and not (c:GetCode()==names[1] or c:GetCode()==names[2])
+		end,tp,LOCATION_DECK,0,nil)
+		if #g>0 then
+			Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
+			local sg=g:Select(tp,1,1,nil)
+			if #sg>0 then
+				Duel.SendtoHand(sg,nil,REASON_EFFECT)
+				Duel.ConfirmCards(1-tp,sg)
+			end
+		end
+	end
+end
+
