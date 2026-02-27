@@ -62,36 +62,54 @@ function s.tdfilter(c,typ,exname,e)
 end
 
 function s.tdtg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
-	if chkc then return false end
-	local g=Duel.GetMatchingGroup(Card.IsAbleToDeck,tp,LOCATION_GRAVE,0,nil)
-	local found=false
-	local typ
-	for t=TYPE_MONSTER,TYPE_TRAP,TYPE_SPELL do
-		local tg=g:Filter(Card.IsType,nil,t)
-		if #tg>=2 then
-			for c1 in aux.Next(tg) do
-				for c2 in aux.Next(tg) do
-					if c1~=c2 and c1:GetCode()~=c2:GetCode() then
-						found=true typ=t break
-					end
-				end
-				if found then break end
-			end
-		end
-		if found then break end
-	end
-	if chk==0 then return found end
-	--Select 2 cards of same type but different names
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TODECK)
-	local tg1=g:Filter(Card.IsType,nil,typ)
-	local c1=tg1:Select(tp,1,1,nil):GetFirst()
-	local tg2=tg1:Filter(function(card) return card:GetCode()~=c1:GetCode() end,nil)
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TODECK)
-	local c2=tg2:Select(tp,1,1,nil):GetFirst()
-	local tg=Group.CreateGroup(); tg:AddCard(c1); tg:AddCard(c2)
-	Duel.SetTargetCard(tg)
-	Duel.SetOperationInfo(0,CATEGORY_TODECK,tg,2,0,0)
-	Duel.SetOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_DECK)
+    if chkc then return false end
+    local g=Duel.GetMatchingGroup(Card.IsAbleToDeck,tp,LOCATION_GRAVE,0,nil)
+
+    -- Build a group of all cards that belong to a valid type pairing
+    local validGroup=Group.CreateGroup()
+    for t=TYPE_SPELL,TYPE_TRAP,TYPE_MONSTER do
+        local tg=g:Filter(Card.IsType,nil,t)
+        if tg:GetCount()>=2 then
+            local hasPair=false
+            for c1 in aux.Next(tg) do
+                for c2 in aux.Next(tg) do
+                    if c1~=c2 and c1:GetCode()~=c2:GetCode() then
+                        hasPair=true
+                        break
+                    end
+                end
+                if hasPair then break end
+            end
+            if hasPair then
+                validGroup:Merge(tg)
+            end
+        end
+    end
+
+    if chk==0 then return validGroup:GetCount()>=2 end
+
+    -- First pick: any card from any valid type group
+    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TODECK)
+    local c1=validGroup:Select(tp,1,1,nil):GetFirst()
+
+    -- Second pick: same type as first pick, different name
+    local c1type
+    if c1:IsType(TYPE_MONSTER) then c1type=TYPE_MONSTER
+    elseif c1:IsType(TYPE_SPELL) then c1type=TYPE_SPELL
+    else c1type=TYPE_TRAP end
+
+    local tg2=validGroup:Filter(
+        function(card)
+            return card~=c1 and card:IsType(c1type) and card:GetCode()~=c1:GetCode()
+        end, nil)
+
+    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TODECK)
+    local c2=tg2:Select(tp,1,1,nil):GetFirst()
+
+    local tg=Group.CreateGroup(); tg:AddCard(c1); tg:AddCard(c2)
+    Duel.SetTargetCard(tg)
+    Duel.SetOperationInfo(0,CATEGORY_TODECK,tg,2,0,0)
+    Duel.SetOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_DECK)
 end
 
 function s.tdop(e,tp,eg,ep,ev,re,r,rp)
