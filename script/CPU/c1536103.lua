@@ -49,7 +49,7 @@ function s.hspop(e,tp,eg,ep,ev,re,r,rp)
 	end
 end
 function s.spell_filter(c,tp)
-	return c:IsSetCard(0x1456) and c:IsType(TYPE_SPELL) and c:IsNormalSpell() and c:IsAbleToHand() and c:IsControler(tp) and c:CheckActivateEffect(false,true,false)~=nil
+	return c:IsSetCard(0x1456) and c:IsType(TYPE_SPELL) and c:IsNormalSpell() and c:IsControler(tp) and c:CheckActivateEffect(false,true,false)~=nil
 end
 function s.spelltg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
 	if chk==0 then return Duel.IsExistingMatchingCard(s.spell_filter,tp,LOCATION_GRAVE,0,1,nil,tp) end
@@ -65,7 +65,6 @@ function s.spellop(e,tp,eg,ep,ev,re,r,rp)
 		c:RegisterFlagEffect(id,RESETS_STANDARD_PHASE_END|reset,EFFECT_FLAG_CLIENT_HINT,1,0,aux.Stringid(id,2))
 	end
 	local tc=Duel.GetFirstTarget()
-	local te,ceg,cep,cev,cre,cr,crp=tc:CheckActivateEffect(false,true,true)
 	if tc and tc:IsRelateToEffect(e) then
 		-- Apply the effect of the selected spell card as if it were activated
 		local te=tc:GetActivateEffect()

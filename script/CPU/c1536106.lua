@@ -22,9 +22,11 @@ function s.cost(e,tp,eg,ep,ev,re,r,rp,chk)
 end
 
 function s.activate(e,tp,eg,ep,ev,re,r,rp)
+		if Duel.HasFlagEffect(tp,id) then return end
+	Duel.RegisterFlagEffect(tp,id,RESET_PHASE|PHASE_END,0,1)
 	local sc=tc
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_NEGATE)
-	local tc=Duel.SelectMatchingCard(tp,Card.IsNegatable,tp,0,LOCATION_ONFIELD,1,1,nil):GetFirst()
+	local tc=Duel.SelectMatchingCard(tp,Card.IsNegatable,tp,0,LOCATION_MZONE,1,1,nil):GetFirst()
 	if not tc then return end
 	if tc:IsCanBeDisabledByEffect(e) then 
 		--Negate its effects
