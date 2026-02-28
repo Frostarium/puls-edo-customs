@@ -36,6 +36,7 @@ function s.initial_effect(c)
   e4:SetCode(EVENT_PHASE+PHASE_END)
   e4:SetRange(LOCATION_MZONE)
   e4:SetCountLimit(1,{id,2})
+  e4:SetCondition(s.thcon)
   e4:SetTarget(s.thtg)
   e4:SetOperation(s.thop)
   c:RegisterEffect(e4)
@@ -109,4 +110,7 @@ function s.thop(e,tp,eg,ep,ev,re,r,rp)
     if tc:IsRelateToEffect(e) then
         Duel.SendtoHand(tc,nil,REASON_EFFECT)
     end
+end
+function s.thcon(e,tp,eg,ep,ev,re,r,rp)
+   return Duel.IsTurnPlayer(tp)
 end
