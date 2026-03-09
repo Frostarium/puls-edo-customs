@@ -101,14 +101,14 @@ function s.lvlop(e,tp,eg,ep,ev,re,r,rp)
     for tc in aux.Next(g) do
         if tc:IsLevelAbove(1) then
             local lv=tc:GetLevel()
-            local new_lv=lv-3
+            local new_lv=lv-2
             if new_lv<1 then
                 Duel.SendtoGrave(tc,REASON_EFFECT)
             else
                 local e1=Effect.CreateEffect(e:GetHandler())
                 e1:SetType(EFFECT_TYPE_SINGLE)
                 e1:SetCode(EFFECT_UPDATE_LEVEL)
-                e1:SetValue(-3)
+                e1:SetValue(-2)
                 e1:SetReset(RESET_EVENT+RESETS_STANDARD_DISABLE)
                 tc:RegisterEffect(e1)
             end
