@@ -12,17 +12,20 @@ function s.initial_effect(c)
 	c:RegisterEffect(e1)
 end
 function s.cost(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.IsExistingMatchingCard(Card.IsDiscardable,tp,LOCATION_HAND,0,1,e:GetHandler()) end
+	if chk==0 then return not Duel.HasFlagEffect(tp,id)
+		and Duel.IsExistingMatchingCard(Card.IsDiscardable,tp,LOCATION_HAND,0,1,e:GetHandler()) end
 	Duel.DiscardHand(tp,Card.IsDiscardable,1,1,REASON_COST|REASON_DISCARD)    
 end
 
 function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.GetFieldGroupCount(tp,0,LOCATION_ONFIELD)>0 end
+	--also checked here, since copies of this effect (CPU / CPU Attack Node) use the Target but not the Cost
+	if chk==0 then return not Duel.HasFlagEffect(tp,id) and Duel.GetFieldGroupCount(tp,0,LOCATION_ONFIELD)>0 end
 end
 function s.activate(e,tp,eg,ep,ev,re,r,rp)
-		if Duel.HasFlagEffect(tp,id) then return end
+	--this effect can only be applied once per turn, no matter how many copies of it are used
+	if Duel.HasFlagEffect(tp,id) then return end
 	Duel.RegisterFlagEffect(tp,id,RESET_PHASE|PHASE_END,0,1)
-		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TOGRAVE)
+	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TOGRAVE)
 	local g=Duel.SelectMatchingCard(tp,nil,tp,0,LOCATION_ONFIELD,1,1,nil)
 	if #g>0 then
 		Duel.HintSelection(g)

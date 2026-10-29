@@ -8,6 +8,7 @@ function s.initial_effect(c)
 	e1:SetCategory(CATEGORY_DISABLE+CATEGORY_REMOVE)
 	e1:SetCost(s.cost)
 	e1:SetCondition(s.condition)
+	e1:SetTarget(s.target)
 	e1:SetOperation(s.activate)
 	c:RegisterEffect(e1)
 end
@@ -17,14 +18,20 @@ function s.condition(e,tp,eg,ep,ev,re,r,rp)
 end
 
 function s.cost(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.IsExistingMatchingCard(Card.IsDiscardable,tp,LOCATION_HAND,0,1,nil) end
+	if chk==0 then return not Duel.HasFlagEffect(tp,id)
+		and Duel.IsExistingMatchingCard(Card.IsDiscardable,tp,LOCATION_HAND,0,1,nil) end
 	Duel.DiscardHand(tp,Card.IsDiscardable,1,1,REASON_COST+REASON_DISCARD)
 end
 
+--also checked in the Target, since copies of this effect (CPU / CPU Attack Node) use the Target but not the Cost
+function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
+	if chk==0 then return not Duel.HasFlagEffect(tp,id) and s.condition(e,tp,eg,ep,ev,re,r,rp) end
+end
+
 function s.activate(e,tp,eg,ep,ev,re,r,rp)
-		if Duel.HasFlagEffect(tp,id) then return end
+	--this effect can only be applied once per turn, no matter how many copies of it are used
+	if Duel.HasFlagEffect(tp,id) then return end
 	Duel.RegisterFlagEffect(tp,id,RESET_PHASE|PHASE_END,0,1)
-	local sc=tc
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_NEGATE)
 	local tc=Duel.SelectMatchingCard(tp,Card.IsNegatable,tp,0,LOCATION_MZONE,1,1,nil):GetFirst()
 	if not tc then return end

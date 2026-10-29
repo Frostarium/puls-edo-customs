@@ -1,91 +1,107 @@
 --Bloody Ritual of Cruelty
 local s,id=GetID()
 function s.initial_effect(c)
-		-- Option 1: Original Ritual Proc
-		local e1=Ritual.CreateProc({handler=c,lvtype=RITPROC_GREATER,filter=function(c) return c:IsRace(RACE_FIEND) and c:IsAttribute(ATTRIBUTE_DARK) end,location=LOCATION_HAND|LOCATION_GRAVE})
-		c:RegisterEffect(e1)
+	-- Option 1: Ritual Summon from your hand or GY, Tributing monsters from your hand or field
+	local e1=Ritual.CreateProc({handler=c,lvtype=RITPROC_GREATER,filter=function(c) return c:IsRace(RACE_FIEND) and c:IsAttribute(ATTRIBUTE_DARK) end,location=LOCATION_HAND|LOCATION_GRAVE})
+	c:RegisterEffect(e1)
 
-		-- Option 2: Ritual Summon DARK Fiend by reducing levels of faceup monsters
-		local e2=Effect.CreateEffect(c)
-		e2:SetDescription(aux.Stringid(id,0))
-		e2:SetCategory(CATEGORY_SPECIAL_SUMMON)
-		e2:SetType(EFFECT_TYPE_ACTIVATE)
-		e2:SetCode(EVENT_FREE_CHAIN)
-		e2:SetTarget(s.ritualtg)
-		e2:SetOperation(s.ritualop)
-		c:RegisterEffect(e2)
-	--If this card is in your GY: You can add both this card and 1 card that mentions "Ritual of Light and Darkness" from your GY to your hand
+	-- Option 2: Ritual Summon by reducing the Levels/Ranks of monsters on the field
 	local e2=Effect.CreateEffect(c)
-	e2:SetDescription(aux.Stringid(id,1))
-	e2:SetCategory(CATEGORY_TOHAND)
-	e2:SetType(EFFECT_TYPE_IGNITION)
-	e2:SetRange(LOCATION_GRAVE)
-	e2:SetCountLimit(1,id)
-	e2:SetTarget(s.thtg)
-	e2:SetOperation(s.thop)
+	e2:SetDescription(aux.Stringid(id,0))
+	e2:SetCategory(CATEGORY_SPECIAL_SUMMON)
+	e2:SetType(EFFECT_TYPE_ACTIVATE)
+	e2:SetCode(EVENT_FREE_CHAIN)
+	e2:SetTarget(s.ritualtg)
+	e2:SetOperation(s.ritualop)
 	c:RegisterEffect(e2)
-
+	--If this card is in your GY: You can add both this card and 1 card that mentions "Ritual of Light and Darkness" from your GY to your hand
+	local e3=Effect.CreateEffect(c)
+	e3:SetDescription(aux.Stringid(id,1))
+	e3:SetCategory(CATEGORY_TOHAND)
+	e3:SetType(EFFECT_TYPE_IGNITION)
+	e3:SetRange(LOCATION_GRAVE)
+	e3:SetCountLimit(1,id)
+	e3:SetTarget(s.thtg)
+	e3:SetOperation(s.thop)
+	c:RegisterEffect(e3)
 end
 s.listed_names={5789104,5789109} --Atakhan, the Cruel and Voracious
 function s.thfilter(c)
 	return c:IsCode(5789104,5789109) and c:IsAbleToHand()
 end
-s.ritual_filter=function(c)
-	return c:IsRace(RACE_FIEND) and c:IsAttribute(ATTRIBUTE_DARK) and c:IsType(TYPE_RITUAL)
+--Level of a monster, or Rank if it is an Xyz Monster
+function s.val(c)
+	if c:IsType(TYPE_XYZ) then return c:GetRank() end
+	return c:GetLevel()
 end
-
+function s.matfilter(c)
+	return c:IsFaceup() and c:IsMonster() and s.val(c)>0
+end
+function s.total(g)
+	local t=0
+	for tc in g:Iter() do t=t+s.val(tc) end
+	return t
+end
+function s.ritual_filter(c,e,tp,total)
+	return c:IsRace(RACE_FIEND) and c:IsAttribute(ATTRIBUTE_DARK) and c:IsType(TYPE_RITUAL)
+		and c:GetLevel()>0 and c:GetLevel()<=total
+		and c:IsCanBeSpecialSummoned(e,SUMMON_TYPE_RITUAL,tp,false,true)
+end
 function s.ritualtg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then
-		return Duel.IsExistingMatchingCard(s.ritual_filter,tp,LOCATION_HAND|LOCATION_GRAVE,0,1,nil)
+		local mg=Duel.GetMatchingGroup(s.matfilter,tp,LOCATION_MZONE,LOCATION_MZONE,nil)
+		return #mg>0 and Duel.IsExistingMatchingCard(s.ritual_filter,tp,LOCATION_HAND|LOCATION_GRAVE,0,1,nil,e,tp,s.total(mg))
 	end
 	Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_HAND|LOCATION_GRAVE)
 end
-
 function s.ritualop(e,tp,eg,ep,ev,re,r,rp)
+	local mg=Duel.GetMatchingGroup(s.matfilter,tp,LOCATION_MZONE,LOCATION_MZONE,nil)
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
-	local g=Duel.SelectMatchingCard(tp,s.ritual_filter,tp,LOCATION_HAND|LOCATION_GRAVE,0,1,1,nil)
-	local rc=g:GetFirst()
+	local rc=Duel.SelectMatchingCard(tp,aux.NecroValleyFilter(s.ritual_filter),tp,LOCATION_HAND|LOCATION_GRAVE,0,1,1,nil,e,tp,s.total(mg)):GetFirst()
 	if not rc then return end
-	local lv=rc:GetLevel()
-	local field=Duel.GetMatchingGroup(Card.IsFaceup,tp,LOCATION_MZONE,LOCATION_MZONE,nil)
-	if #field==0 then return end
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_FACEUP)
-	-- Select any number of monsters whose total level reduction does not exceed the ritual monster's level
-	local maxc=#field
-	local selected=Duel.SelectMatchingCard(tp,Card.IsFaceup,tp,LOCATION_MZONE,LOCATION_MZONE,1,maxc,nil)
-	if #selected==0 then return end
-	local total_reduction=0
-	local reductions={}
-	for tc in aux.Next(selected) do
-		local max_reduce=math.min(tc:GetLevel(),lv-total_reduction)
-		if max_reduce>0 then
-			-- Ask player how much to reduce for this monster
-			local reduce=Duel.AnnounceNumber(tp,1,max_reduce)
-			reductions[tc]=reduce
-			total_reduction=total_reduction+reduce
-			if total_reduction==lv then break end
+	local rem=rc:GetLevel()
+	local used={}
+	local chosen=Group.CreateGroup()
+	--pick any number of monsters and distribute the reduction until it equals the Ritual Monster's Level
+	while rem>0 do
+		local pool=mg-chosen
+		if #pool==0 then return end
+		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_FACEUP)
+		local tc=pool:Select(tp,1,1,nil):GetFirst()
+		local others=s.total(pool)-s.val(tc)
+		local maxv=math.min(rem,s.val(tc))
+		local minv=math.max(1,rem-others)
+		if minv>maxv then return end
+		local amt=minv
+		if maxv>minv then
+			local opts={}
+			for i=minv,maxv do table.insert(opts,i) end
+			amt=Duel.AnnounceNumber(tp,table.unpack(opts))
+		end
+		chosen:AddCard(tc)
+		used[tc]=amt
+		rem=rem-amt
+	end
+	local sendg=Group.CreateGroup()
+	for tc,amt in pairs(used) do
+		if amt>=s.val(tc) then
+			--reduced to 0: sent to the GY
+			sendg:AddCard(tc)
 		else
-			reductions[tc]=0
+			local e1=Effect.CreateEffect(e:GetHandler())
+			e1:SetType(EFFECT_TYPE_SINGLE)
+			e1:SetCode(tc:IsType(TYPE_XYZ) and EFFECT_UPDATE_RANK or EFFECT_UPDATE_LEVEL)
+			e1:SetValue(-amt)
+			e1:SetReset(RESET_EVENT|RESETS_STANDARD_DISABLE)
+			tc:RegisterEffect(e1)
 		end
 	end
-	if total_reduction~=lv or not rc:IsCanBeSpecialSummoned(e,SUMMON_TYPE_RITUAL,tp,false,true) then return end
-	-- Apply reductions and send monsters with level < 1 to GY
-	for tc,reduce in pairs(reductions) do
-		local new_lv=tc:GetLevel()-reduce
-		if new_lv<1 then
-			Duel.SendtoGrave(tc,REASON_EFFECT+REASON_MATERIAL+REASON_RITUAL)
-		else 
-			if lv > 0 then
-        local e1=Effect.CreateEffect(tc)
-		e1:SetType(EFFECT_TYPE_SINGLE)
-		e1:SetCode(EFFECT_CHANGE_LEVEL)
-		e1:SetValue(new_lv)
-		tc:RegisterEffect(e1)
-		end
+	if #sendg>0 then Duel.SendtoGrave(sendg,REASON_EFFECT) end
+	if Duel.GetLocationCount(tp,LOCATION_MZONE)<=0 then return end
+	Duel.BreakEffect()
+	if Duel.SpecialSummon(rc,SUMMON_TYPE_RITUAL,tp,tp,false,true,POS_FACEUP)>0 then
+		rc:CompleteProcedure()
 	end
-end
-	Duel.SpecialSummon(rc,SUMMON_TYPE_RITUAL,tp,tp,false,true,POS_FACEUP)
-	rc:CompleteProcedure()
 end
 function s.thtg(e,tp,eg,ep,ev,re,r,rp,chk)
 	local c=e:GetHandler()

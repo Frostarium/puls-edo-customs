@@ -2,7 +2,7 @@
 local s, id = GetID()
 function s.initial_effect(c)
 c:EnableReviveLimit()
-	--Link Summon procedure: 3 monsters, including a "Maliss" monster
+	--Link Summon procedure: 3 monsters, including a CPU
 	Link.AddProcedure(c,nil,3,3,s.lcheck)
     c:SetSPSummonOnce(id)
      --Activate 1 of these effects

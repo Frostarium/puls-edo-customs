@@ -89,29 +89,30 @@ function s.lrop(e,tp,eg,ep,ev,re,r,rp)
 	end
 end
 end
+function s.lvlfilter(c,tp)
+	return c:IsSummonPlayer(1-tp) and c:IsFaceup() and c:IsLocation(LOCATION_MZONE)
+		and (c:HasLevel() or c:HasRank())
+end
 function s.lvlcon(e,tp,eg,ep,ev,re,r,rp)
-	return eg:IsExists(Card.IsSummonPlayer,1,nil,1-tp)
+	return eg:IsExists(s.lvlfilter,1,nil,tp)
 end
 function s.lvltg(e,tp,eg,ep,ev,re,r,rp,chk)
-    return Duel.IsExistingMatchingCard(aux.FaceupFilter(Card.HasLevel,1),tp,0,LOCATION_MZONE,1,nil)
+	return eg:IsExists(s.lvlfilter,1,nil,tp)
 end
--- s.op: Reduces opponent's monsters' levels by 4; if reduced below 1, send to GY
+-- Reduces the Level/Rank of each monster the opponent just summoned by 2; if reduced below 1, send to GY
 function s.lvlop(e,tp,eg,ep,ev,re,r,rp)
-    local g=Duel.GetMatchingGroup(Card.HasLevel,tp,0,LOCATION_MZONE,1,nil)
-    for tc in aux.Next(g) do
-        if tc:IsLevelAbove(1) then
-            local lv=tc:GetLevel()
-            local new_lv=lv-2
-            if new_lv<1 then
-                Duel.SendtoGrave(tc,REASON_EFFECT)
-            else
-                local e1=Effect.CreateEffect(e:GetHandler())
-                e1:SetType(EFFECT_TYPE_SINGLE)
-                e1:SetCode(EFFECT_UPDATE_LEVEL)
-                e1:SetValue(-2)
-                e1:SetReset(RESET_EVENT+RESETS_STANDARD_DISABLE)
-                tc:RegisterEffect(e1)
-            end
-        end
-    end
+	local g=eg:Filter(s.lvlfilter,nil,tp)
+	for tc in aux.Next(g) do
+		local lv=tc:HasLevel() and tc:GetLevel() or tc:GetRank()
+		if lv-2<1 then
+			Duel.SendtoGrave(tc,REASON_EFFECT)
+		else
+			local e1=Effect.CreateEffect(e:GetHandler())
+			e1:SetType(EFFECT_TYPE_SINGLE)
+			e1:SetCode(tc:HasLevel() and EFFECT_UPDATE_LEVEL or EFFECT_UPDATE_RANK)
+			e1:SetValue(-2)
+			e1:SetReset(RESET_EVENT+RESETS_STANDARD_DISABLE)
+			tc:RegisterEffect(e1)
+		end
+	end
 end

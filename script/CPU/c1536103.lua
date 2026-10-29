@@ -27,7 +27,7 @@ function s.initial_effect(c)
     e3:SetCode(EVENT_FREE_CHAIN)
 	e3:SetProperty(EFFECT_FLAG_CARD_TARGET)
     e3:SetRange(LOCATION_MZONE)
-    e3:SetCountLimit(1,{id,1})
+    e3:SetCountLimit(1)
 	e3:SetCondition(s.spellcon)
     e3:SetTarget(s.spelltg)
     e3:SetOperation(s.spellop)
@@ -58,12 +58,6 @@ function s.spelltg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
 	Duel.SetTargetCard(g)
 end
 function s.spellop(e,tp,eg,ep,ev,re,r,rp)
-	local c=e:GetHandler()
-	if c:IsRelateToEffect(e) then
-		local reset=RESET_SELF_TURN
-		if Duel.IsTurnPlayer(tp) then reset=RESET_OPPO_TURN end
-		c:RegisterFlagEffect(id,RESETS_STANDARD_PHASE_END|reset,EFFECT_FLAG_CLIENT_HINT,1,0,aux.Stringid(id,2))
-	end
 	local tc=Duel.GetFirstTarget()
 	if tc and tc:IsRelateToEffect(e) then
 		-- Apply the effect of the selected spell card as if it were activated

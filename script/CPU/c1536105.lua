@@ -8,6 +8,7 @@ function s.initial_effect(c)
 	e1:SetHintTiming(0,TIMINGS_CHECK_MONSTER+TIMING_END_PHASE)
 	e1:SetCost(s.eqcost)
 	e1:SetCondition(s.condition)
+	e1:SetTarget(s.target)
 	e1:SetOperation(s.activate)
 	c:RegisterEffect(e1)
 end
@@ -23,8 +24,14 @@ function s.condition(e,tp,eg,ep,ev,re,r,rp)
 	end
 end
 
+--also checked in the Target, since copies of this effect (CPU / CPU Attack Node) use the Target but not the Cost
+function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
+	if chk==0 then return not Duel.HasFlagEffect(tp,id) and s.condition(e,tp,eg,ep,ev,re,r,rp) end
+end
+
 function s.activate(e,tp,eg,ep,ev,re,r,rp)
-		if Duel.HasFlagEffect(tp,id) then return end
+	--this effect can only be applied once per turn, no matter how many copies of it are used
+	if Duel.HasFlagEffect(tp,id) then return end
 	Duel.RegisterFlagEffect(tp,id,RESET_PHASE|PHASE_END,0,1)
 	local opp=1-tp
 	if Duel.GetTurnPlayer()==tp then
@@ -57,6 +64,7 @@ function s.activate(e,tp,eg,ep,ev,re,r,rp)
 	end
 end
 function s.eqcost(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.IsExistingMatchingCard(Card.IsDiscardable,tp,LOCATION_HAND,0,2,e:GetHandler()) end
+	if chk==0 then return not Duel.HasFlagEffect(tp,id)
+		and Duel.IsExistingMatchingCard(Card.IsDiscardable,tp,LOCATION_HAND,0,2,e:GetHandler()) end
 	Duel.DiscardHand(tp,Card.IsDiscardable,1,1,REASON_COST|REASON_DISCARD)
 end
