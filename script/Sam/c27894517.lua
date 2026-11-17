@@ -96,6 +96,8 @@ function s.exop(e,tp,eg,ep,ev,re,r,rp)
 	if #sg>0 and Duel.SelectYesNo(tp,aux.Stringid(id,2)) then
 		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SET)
 		local sc=sg:Select(tp,1,1,nil):GetFirst()
+		--taking a card out of the middle of the Deck would shuffle it afterwards; keep the excavated cards on top
+		Duel.DisableShuffleCheck()
 		Duel.SSet(tp,sc)
 	end
 	--place the rest on top of your Deck in any order
