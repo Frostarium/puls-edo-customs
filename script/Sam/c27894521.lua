@@ -19,15 +19,17 @@ function s.initial_effect(c)
 	e1:SetTarget(s.sptg)
 	e1:SetOperation(s.spop)
 	c:RegisterEffect(e1)
-	--A "Star Seraph" Xyz Monster with this card as material gains the following effect:
-	--If it is Xyz Summoned: While this card is on the field, you activate this card's effects that detach material as Quick Effects
-	--(same setup as "Star Seraph Scepter": when this card becomes Xyz material, the effect is given to the Xyz Monster)
-	local e2=Effect.CreateEffect(c)
-	e2:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
-	e2:SetCode(EVENT_BE_MATERIAL)
-	e2:SetCondition(s.effcon)
-	e2:SetOperation(s.effop)
-	c:RegisterEffect(e2)
+	--A "Star Seraph" Xyz Monster that has this card as material gains this effect:
+	--● You can activate this card's effects that detach material as Quick Effects.
+	--Continuous check (adjust): applies for as long as this card is attached, so it carries over
+	--when the material is transferred (Rank-Up), and stops as soon as this card is detached.
+	aux.GlobalCheck(s,function()
+		local ge1=Effect.CreateEffect(c)
+		ge1:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
+		ge1:SetCode(EVENT_ADJUST)
+		ge1:SetOperation(s.adjop)
+		Duel.RegisterEffect(ge1,0)
+	end)
 end
 s.listed_series={SET_STAR_SERAPH}
 --Special Summon
@@ -50,45 +52,24 @@ function s.spop(e,tp,eg,ep,ev,re,r,rp)
 	end
 end
 --Effect gain
-function s.effcon(e,tp,eg,ep,ev,re,r,rp)
-	local rc=e:GetHandler():GetReasonCard()
-	return r==REASON_XYZ and rc and rc:IsSetCard(SET_STAR_SERAPH)
-end
-function s.effop(e,tp,eg,ep,ev,re,r,rp)
-	local rc=e:GetHandler():GetReasonCard()
-	--If it is Xyz Summoned: ...
-	local e1=Effect.CreateEffect(rc)
-	e1:SetDescription(aux.Stringid(id,1))
-	e1:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_F)
-	e1:SetCode(EVENT_SPSUMMON_SUCCESS)
-	e1:SetCondition(s.qcon)
-	e1:SetOperation(s.qop)
-	e1:SetReset(RESET_EVENT|RESETS_STANDARD)
-	rc:RegisterEffect(e1,true)
-end
-function s.qcon(e,tp,eg,ep,ev,re,r,rp)
-	return e:GetHandler():IsSummonType(SUMMON_TYPE_XYZ)
-end
-function s.qop(e,tp,eg,ep,ev,re,r,rp)
-	local xc=e:GetHandler()
-	if not (xc:IsFaceup() and xc:IsLocation(LOCATION_MZONE)) then return end
-	s.converted[xc]={}
-	--...while this card is on the field
-	if xc:GetFlagEffect(id)==0 then
-		xc:RegisterFlagEffect(id,RESET_EVENT|RESETS_STANDARD,EFFECT_FLAG_CLIENT_HINT,1,0,aux.Stringid(id,1))
-		--keep checking (adjust), so effects this card gains later are covered too
-		local e1=Effect.CreateEffect(xc)
-		e1:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
-		e1:SetCode(EVENT_ADJUST)
-		e1:SetRange(LOCATION_MZONE)
-		e1:SetOperation(s.adjop)
-		e1:SetReset(RESET_EVENT|RESETS_STANDARD)
-		xc:RegisterEffect(e1,true)
-	end
-	s.convert(xc)
+--true while xc is a face-up "Star Seraph" Xyz Monster with this card as material
+function s.active(xc)
+	return xc:IsFaceup() and xc:IsLocation(LOCATION_MZONE) and xc:IsType(TYPE_XYZ)
+		and xc:IsSetCard(SET_STAR_SERAPH) and xc:GetOverlayGroup():IsExists(Card.IsCode,1,nil,id)
 end
 function s.adjop(e,tp,eg,ep,ev,re,r,rp)
-	s.convert(e:GetHandler())
+	local g=Duel.GetMatchingGroup(Card.IsFaceup,0,LOCATION_MZONE,LOCATION_MZONE,nil)
+	for xc in g:Iter() do
+		if s.active(xc) then
+			--client hint while the effect applies
+			if xc:GetFlagEffect(id)==0 then
+				xc:RegisterFlagEffect(id,RESET_EVENT|RESETS_STANDARD,EFFECT_FLAG_CLIENT_HINT,1,0,aux.Stringid(id,1))
+			end
+			s.convert(xc)
+		elseif xc:GetFlagEffect(id)>0 then
+			xc:ResetFlagEffect(id)
+		end
+	end
 end
 --an effect "that detaches material": registered with the detach marker, or an Ignition Effect of this
 --Xyz Monster on the field that has a cost (e.g. Cost.Detach, or a cost that calls RemoveOverlayCard)
@@ -98,12 +79,12 @@ function s.isdetacheffect(xc,te,marked)
 	return marked[te] or (te:GetCost()~=nil and te:GetOwner()==xc)
 end
 function s.convert(xc)
-	if xc:GetFlagEffect(id)==0 then return end
-	local done=s.converted[xc]
-	if not done then
-		done={}
-		s.converted[xc]=done
+	--the Quick Effect versions are removed when the card leaves the field, so start over if it came back
+	if xc:GetFlagEffect(id+2)==0 then
+		s.converted[xc]={}
+		xc:RegisterFlagEffect(id+2,RESET_EVENT|RESETS_STANDARD,0,1)
 	end
+	local done=s.converted[xc]
 	local marked={}
 	for _,marker in ipairs({xc:GetCardEffect(DETACH_MARKER)}) do
 		local te=marker:GetLabelObject()
@@ -127,7 +108,7 @@ function s.makequick(xc,te)
 	if not s.wrapped[te] then
 		s.wrapped[te]=true
 		te:SetCondition(function(e,...)
-			if e:GetHandler():GetFlagEffect(id)>0 then return false end
+			if s.active(e:GetHandler()) then return false end
 			return not ocon or ocon(e,...)
 		end)
 	end
@@ -145,7 +126,8 @@ function s.makequick(xc,te)
 	end
 	e1:SetCondition(function(e,tp,eg,ep,ev,re,r,rp)
 		local c=e:GetHandler()
-		if c:GetFlagEffect(id)==0 then return false end
+		--only while this card is still attached
+		if not s.active(c) then return false end
 		if max>0 and not shared then
 			--plain "Once per turn": shared with the Ignition version through a flag
 			if c:GetFlagEffect(id+1)>=max then return false end
