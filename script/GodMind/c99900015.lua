@@ -1,7 +1,7 @@
 --GodMind Shi'arWare
 --Synchro: 1 Tuner + 1 or more non-Tuner monsters
---Passive 1: treated as Level 4 for the Summon of an Xyz Monster.
---Passive 2: can be used as 2 materials (Link Rating 2) for a Link Summon.
+--Passive 1: can be treated as a Level 4 monster for the Xyz Summon of a "GodMind" monster.
+--Passive 2: can be treated as 2 materials for the Link Summon of a "GodMind" monster.
 --When Special Summoned: choose 1 other "GodMind" monster in your hand / field / GY / banishment and apply its effect.
 --Once per turn (Ignition): banish monsters from your hand, field and/or GY; Special Summon 1 Fusion / Synchro / Xyz / Link Monster from your
 --Extra Deck (Fusion Monsters included again since 2026-11-23) whose Level / Rank / Link Rating
@@ -14,15 +14,15 @@ local SET_GODMIND=0x1650
 local EFFECT_GODMIND_LINK2=99900302
 function s.initial_effect(c)
 	Synchro.AddProcedure(c,nil,1,1,Synchro.NonTuner(nil),1,99)
-	--Passive 1: Level 4 for Xyz Summons
+	--Passive 1: can be Level 4 for "GodMind" Xyz Summons
 	local e1=Effect.CreateEffect(c)
 	e1:SetType(EFFECT_TYPE_SINGLE)
 	e1:SetCode(EFFECT_XYZ_LEVEL)
 	e1:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
 	e1:SetRange(LOCATION_MZONE)
-	e1:SetValue(4)
+	e1:SetValue(s.xyzlv)
 	c:RegisterEffect(e1)
-	--Passive 2: counts as 2 materials for a Link Summon (read by the Link.GetLinkCount wrapper below)
+	--Passive 2: counts as 2 materials for a "GodMind" Link Summon (read by the Link.GetLinkCount wrapper below)
 	local e2=Effect.CreateEffect(c)
 	e2:SetType(EFFECT_TYPE_SINGLE)
 	e2:SetCode(EFFECT_GODMIND_LINK2)
@@ -53,13 +53,31 @@ function s.initial_effect(c)
 end
 ---------------------------------------------------------------------------------------------------------------------
 --Passive 2. The Link Summon procedure measures materials with Link.GetLinkCount: 1 for a normal monster, or "1 or its Link Rating"
---for a Link-2+ (packed as 1+0x10000*rating). A monster with this card's effect counts as 1 or 2.
+--for a Link-2+ (packed as 1+0x10000*rating). A monster with this card's effect counts as 1 or 2, but only for a "GodMind" Link Monster.
+--GetLinkCount is not told which monster is being Link Summoned, so Link.CheckGoal (its only caller in proc_link.lua) is wrapped to remember it.
+local linking=nil
+local o_CheckGoal=Link.CheckGoal
+function Link.CheckGoal(tp,sg,lc,...)
+	local prev=linking
+	linking=lc
+	local res=o_CheckGoal(tp,sg,lc,...)
+	linking=prev
+	return res
+end
 local o_GetLinkCount=Link.GetLinkCount
 function Link.GetLinkCount(c)
-	if c:IsHasEffect(EFFECT_GODMIND_LINK2) and not (c:IsLinkMonster() and c:GetLink()>1) then
+	if linking and linking:IsSetCard(SET_GODMIND) and c:IsHasEffect(EFFECT_GODMIND_LINK2)
+		and not (c:IsLinkMonster() and c:GetLink()>1) then
 		return 1+0x20000
 	end
 	return o_GetLinkCount(c)
+end
+--Passive 1: can be treated as Level 4 for the Xyz Summon of a "GodMind" monster (same shape as "Crystal Shark")
+function s.xyzlv(e,c,rc)
+	if rc:IsSetCard(SET_GODMIND) then
+		return 4,e:GetHandler():GetLevel()
+	end
+	return e:GetHandler():GetLevel()
 end
 ---------------------------------------------------------------------------------------------------------------------
 --When Special Summoned: apply the effect of a "GodMind" monster.
@@ -70,6 +88,25 @@ local LOC_COPY=LOCATION_HAND|LOCATION_MZONE|LOCATION_GRAVE|LOCATION_REMOVED
 local copied=nil
 function s.efflist(c,e,tp,eg,ep,ev,re,r,rp)
 	local list,seen={},{}
+	--Card.GetCardEffect only lists effects that are AVAILABLE right now, so a trigger effect of a card in the hand / GY / banishment is often missing
+	--(2026-11-25: "GodMind Ambassador" / "GodMind Supervisor" could not be chosen). A card can therefore export its borrowable effects itself:
+	--  s.apply_effects={{desc=aux.Stringid(id,0),category=...,property=...,target=s.target,operation=s.operation}}
+	--(a stand-in for an effect object: only description / property / category / target / operation are read from it)
+	local mt=Duel.GetMetatable(c:GetOriginalCode())
+	if mt and mt.apply_effects then
+		for _,d in ipairs(mt.apply_effects) do
+			if not d.target or d.target(e,tp,eg,ep,ev,re,r,rp,0) then
+				table.insert(list,{
+					GetDescription=function() return d.desc or 0 end,
+					GetProperty=function() return d.property or 0 end,
+					GetCategory=function() return d.category or 0 end,
+					GetTarget=function() return d.target end,
+					GetOperation=function() return d.operation end,
+				})
+			end
+		end
+		return list
+	end
 	for _,te in ipairs{c:GetCardEffect()} do
 		if te:GetOwner()==c and te:IsHasType(EFFECT_TYPE_IGNITION|EFFECT_TYPE_QUICK_O|EFFECT_TYPE_TRIGGER_O|EFFECT_TYPE_TRIGGER_F) then
 			local op=te:GetOperation()

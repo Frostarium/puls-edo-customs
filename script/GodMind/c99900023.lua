@@ -1,7 +1,8 @@
 --GodMind Warzone (replaced "GodMind Firewall" on 2026-11-22)
 --Continuous Trap.
 --If you control a "GodMind" Fusion, Synchro, Xyz, or Link Monster (Quick Effect): You can target 1 monster your opponent controls; negate its effects until the end of this turn,
---and if you do, it cannot leave the field this turn, also, during the End Phase of this turn, return it to the hand. You can only use this effect of "GodMind Warzone" once per turn.
+--and if you do, it cannot leave the field until the End Phase, also, during the End Phase of this turn, return it to the hand. You can only use this effect of "GodMind Warzone" once per turn.
+--(s.lockonfield is also used by "GodMind Processor 10² Technarch".)
 --"GodMind" Fusion, Synchro, Xyz, and Link Monsters you control cannot be targeted by your opponent's card effects.
 local s,id=GetID()
 local SET_GODMIND=0x1650
@@ -53,7 +54,34 @@ function s.target(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
 	Duel.SetOperationInfo(0,CATEGORY_DISABLE,g,1,0,0)
 	Duel.SetPossibleOperationInfo(0,CATEGORY_TOHAND,g,1,0,0)
 end
-local LEAVE_CODES={EFFECT_CANNOT_TO_HAND,EFFECT_CANNOT_TO_DECK,EFFECT_CANNOT_REMOVE,EFFECT_CANNOT_TO_GRAVE}
+--"tc cannot leave the field until the End Phase" (effect owner c). Every lock stops applying once the End Phase starts,
+--so from then on any card can make it leave. Covers: sent to hand / Deck / GY, banished, destroyed, Tributed, used as material.
+function s.notendphase()
+	return Duel.GetCurrentPhase()~=PHASE_END
+end
+function s.lockonfield(c,tc)
+	local locks={
+		{EFFECT_CANNOT_TO_HAND},
+		{EFFECT_CANNOT_TO_DECK},
+		{EFFECT_CANNOT_REMOVE},
+		{EFFECT_CANNOT_TO_GRAVE},
+		{EFFECT_INDESTRUCTABLE_BATTLE,1},
+		{EFFECT_INDESTRUCTABLE_EFFECT,1},
+		{EFFECT_UNRELEASABLE_SUM,1},
+		{EFFECT_UNRELEASABLE_NONSUM,1},
+		{EFFECT_CANNOT_BE_MATERIAL,aux.cannotmatfilter(SUMMON_TYPE_FUSION,SUMMON_TYPE_SYNCHRO,SUMMON_TYPE_XYZ,SUMMON_TYPE_LINK)},
+	}
+	for _,lock in ipairs(locks) do
+		local el=Effect.CreateEffect(c)
+		el:SetType(EFFECT_TYPE_SINGLE)
+		el:SetProperty(EFFECT_FLAG_CANNOT_DISABLE)
+		el:SetCode(lock[1])
+		if lock[2] then el:SetValue(lock[2]) end
+		el:SetCondition(s.notendphase)
+		el:SetReset(RESETS_STANDARD_PHASE_END)
+		tc:RegisterEffect(el)
+	end
+end
 function s.operation(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 	local tc=Duel.GetFirstTarget()
@@ -76,17 +104,8 @@ function s.operation(e,tp,eg,ep,ev,re,r,rp)
 		e3:SetReset(RESETS_STANDARD_PHASE_END)
 		tc:RegisterEffect(e3)
 	end
-	--it cannot leave the field this turn (removed right before the End Phase return)
-	local locks={}
-	for _,code in ipairs(LEAVE_CODES) do
-		local el=Effect.CreateEffect(c)
-		el:SetType(EFFECT_TYPE_SINGLE)
-		el:SetProperty(EFFECT_FLAG_CANNOT_DISABLE)
-		el:SetCode(code)
-		el:SetReset(RESETS_STANDARD_PHASE_END)
-		tc:RegisterEffect(el)
-		table.insert(locks,el)
-	end
+	--it cannot leave the field until the End Phase
+	s.lockonfield(c,tc)
 	--during the End Phase of this turn, return it to the hand
 	local fid=tc:GetFieldID()
 	local ep1=Effect.CreateEffect(c)
@@ -96,7 +115,6 @@ function s.operation(e,tp,eg,ep,ev,re,r,rp)
 	ep1:SetLabelObject(tc)
 	ep1:SetOperation(function(e2_,tp2)
 		local rc=e2_:GetLabelObject()
-		for _,el in ipairs(locks) do el:Reset() end
 		if rc and rc:GetFieldID()==fid and rc:IsOnField() and rc:IsAbleToHand() then
 			Duel.SendtoHand(rc,nil,REASON_EFFECT)
 		end

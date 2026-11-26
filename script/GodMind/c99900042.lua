@@ -4,14 +4,16 @@
 --[ Monster Effect ] 2 Level 5 "GodMind" monsters
 --  If you can Pendulum Summon Level 5, you can Pendulum Summon this face-up card in your Extra Deck.
 --  You can also Xyz Summon this card by discarding 1 "GodMind" monster and using "GodMind Technarch" you control as the Xyz Material (like Number 99: Utopic Dragon).
---  Ignition (Quick Effect via "GodMind Processing Universe"): target up to 2 face-up monsters YOUR OPPONENT controls (never your own monsters or this card); apply the "Forbidden Crown" effects of "GodMind Technarch" to them until the end of this turn (NO detach cost).
---  During the End Phase: attach the monsters you applied those effects to this turn to this card as material.
+--  Ignition (Quick Effect via "GodMind Processing Universe"): target up to 2 face-up monsters YOUR OPPONENT controls; negate their effects until the end of this turn,
+--  and if you do, they cannot leave the field until the End Phase, also, during the End Phase of this turn, attach them to this card as material. (One effect; no cost.)
+--  (2026-11-26: replaced the "Forbidden Crown" effects and the separate End Phase attach effect.)
 --  Ignition: Special Summon 1 monster your opponent owns that is attached to this card as material; it is hijacked (+ LIGHT/Machine) BEFORE it is Summoned.
 --  Each effect once per turn.
 local s,id=GetID()
 local SET_GODMIND=0x1650
 local CODE_TECHNARCH=99900013
-local technarch=Duel.LoadCardScript(CODE_TECHNARCH)
+--"GodMind Warzone" holds the "cannot leave the field until the End Phase" code
+local warzone=Duel.LoadCardScript(99900023)
 local starware=Duel.LoadCardScript(99900011)
 --Extra Deck Pendulum Monsters have no Level for the Pendulum Summon: proc_pendulum.lua reads this field
 s.pendulum_level=5
@@ -37,7 +39,7 @@ function s.initial_effect(c)
 	e0:SetTarget(s.pensptg)
 	e0:SetOperation(s.penspop)
 	c:RegisterEffect(e0)
-	--Ignition: apply "Forbidden Crown" to up to 2 face-up monsters (no cost)
+	--Ignition: negate up to 2 monsters, lock them on the field, attach them in the End Phase (no cost)
 	local e1=Effect.CreateEffect(c)
 	e1:SetDescription(aux.Stringid(id,2))
 	e1:SetCategory(CATEGORY_DISABLE)
@@ -48,17 +50,6 @@ function s.initial_effect(c)
 	e1:SetTarget(s.target)
 	e1:SetOperation(s.operation)
 	c:RegisterEffect(e1)
-	--End Phase: attach the monsters affected this turn (same code as "GodMind Technarch")
-	local e2=Effect.CreateEffect(c)
-	e2:SetDescription(aux.Stringid(id,3))
-	e2:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
-	e2:SetCode(EVENT_PHASE+PHASE_END)
-	e2:SetRange(LOCATION_MZONE)
-	e2:SetCountLimit(1,{id,2})
-	e2:SetCondition(technarch.atcon)
-	e2:SetTarget(technarch.attg)
-	e2:SetOperation(technarch.atop)
-	c:RegisterEffect(e2)
 	--Ignition: Special Summon 1 attached monster that your opponent owns, hijacked
 	local e3=Effect.CreateEffect(c)
 	e3:SetDescription(aux.Stringid(id,4))
@@ -107,21 +98,51 @@ function s.penspop(e,tp,eg,ep,ev,re,r,rp)
 		Duel.Overlay(c,og)
 	end
 end
---Ignition: up to 2 monsters, same effects as "GodMind Technarch"
+--Ignition: negate up to 2 monsters your opponent controls, they cannot leave the field until the End Phase, then they are attached in the End Phase
 function s.target(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
-	--only monsters your opponent controls (never your own monsters or this card)
-	if chkc then return chkc:IsLocation(LOCATION_MZONE) and chkc:IsControler(1-tp) and technarch.afilter(chkc,tp) end
-	if chk==0 then return Duel.IsExistingTarget(technarch.afilter,tp,0,LOCATION_MZONE,1,nil,tp) end
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_APPLYTO)
-	local g=Duel.SelectTarget(tp,technarch.afilter,tp,0,LOCATION_MZONE,1,2,nil,tp)
+	if chkc then return chkc:IsLocation(LOCATION_MZONE) and chkc:IsControler(1-tp) and chkc:IsFaceup() end
+	if chk==0 then return Duel.IsExistingTarget(Card.IsFaceup,tp,0,LOCATION_MZONE,1,nil) end
+	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_NEGATE)
+	local g=Duel.SelectTarget(tp,Card.IsFaceup,tp,0,LOCATION_MZONE,1,2,nil)
 	Duel.SetOperationInfo(0,CATEGORY_DISABLE,g,#g,0,0)
+end
+function s.negfilter(c,e,tp)
+	return c:IsFaceup() and c:IsControler(1-tp) and not c:IsImmuneToEffect(e)
 end
 function s.operation(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
-	local tg=Duel.GetTargetCards(e):Filter(Card.IsFaceup,nil)
-	for sc in tg:Iter() do
-		technarch.apply(c,sc)
+	local g=Duel.GetTargetCards(e):Filter(s.negfilter,nil,e,tp)
+	if #g==0 then return end
+	local marked={}
+	for tc in g:Iter() do
+		tc:NegateEffects(c,RESETS_STANDARD_PHASE_END)
+		warzone.lockonfield(c,tc)
+		tc:RegisterFlagEffect(id,RESETS_STANDARD_PHASE_END,EFFECT_FLAG_CLIENT_HINT,1,0,aux.Stringid(id,3))
+		table.insert(marked,{tc,tc:GetFieldID()})
 	end
+	--during the End Phase of this turn, attach them (only if this card is still the same face-up Xyz Monster)
+	if not (c:IsRelateToEffect(e) and c:IsFaceup()) then return end
+	local cfid=c:GetFieldID()
+	local ep1=Effect.CreateEffect(c)
+	ep1:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
+	ep1:SetCode(EVENT_PHASE+PHASE_END)
+	ep1:SetCountLimit(1)
+	ep1:SetOperation(function(ee)
+		if not (c:IsLocation(LOCATION_MZONE) and c:IsFaceup() and c:IsType(TYPE_XYZ) and c:GetFieldID()==cfid) then return end
+		local og=Group.CreateGroup()
+		for _,m in ipairs(marked) do
+			local mc=m[1]
+			if mc:IsLocation(LOCATION_MZONE) and mc:GetFieldID()==m[2] and not mc:IsType(TYPE_TOKEN) and not mc:IsImmuneToEffect(ee) then
+				og:AddCard(mc)
+			end
+		end
+		if #og>0 then
+			Duel.Hint(HINT_CARD,0,id)
+			Duel.Overlay(c,og)
+		end
+	end)
+	ep1:SetReset(RESET_PHASE|PHASE_END)
+	Duel.RegisterEffect(ep1,tp)
 end
 --Ignition: Special Summon 1 attached monster that your opponent owns, treated as GodMind (hijack BEFORE the Summon, like the Extra Deck summons do)
 --The monster is hijacked FIRST and only then checked for being Summonable: hijacking rewrites the monster's own Summoning conditions too

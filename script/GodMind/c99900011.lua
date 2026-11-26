@@ -36,7 +36,7 @@ end
 function s.initial_effect(c)
 	--Link Summon: 2+ "GodMind" monsters
 	Link.AddProcedure(c,s.matfilter,2,99)
-	--Ignition Effect. Target 1 face-up card your opponent controls: negate it, take control of it (the negation ends), treat it as
+	--Ignition Effect. Target 1 face-up card your opponent controls (any face-up card again since 2026-11-25): negate it, take control of it (the negation ends), treat it as
 	--GodMind and rewrite its archetype / card-name references to "GodMind".
 	--(While "GodMind Processing Universe" is face-up on your field it adds a Quick Effect clone of this effect.)
 	local e1=Effect.CreateEffect(c)
@@ -53,12 +53,22 @@ end
 function s.matfilter(c,lc,sumtype,tp)
 	return c:IsSetCard(SET_GODMIND,lc,sumtype,tp)
 end
---target: a face-up monster, or a face-up Continuous Spell/Trap, or a face-up Field Spell
+--is this Spell/Trap Card being activated, with its chain link still waiting to resolve? (it cannot be moved then)
+function s.pending(c)
+	for i=1,Duel.GetCurrentChain() do
+		local te=Duel.GetChainInfo(i,CHAININFO_TRIGGERING_EFFECT)
+		if te and te:GetHandler()==c and te:IsHasType(EFFECT_TYPE_ACTIVATE) then return true end
+	end
+	return false
+end
+--target: any face-up card the opponent controls: a monster whose control can be changed, a Field Spell, or any other face-up Spell/Trap Card
+--(needs a free Spell & Trap Zone; not one that is being activated)
 function s.filter(c,tp)
 	if not c:IsFaceup() then return false end
-	if c:IsMonster() then return c:IsControlerCanBeChanged() end
+	if c:IsMonster() then return c:IsLocation(LOCATION_MZONE) and c:IsControlerCanBeChanged() end
+	if not c:IsSpellTrap() or s.pending(c) then return false end
 	if c:IsType(TYPE_FIELD) then return true end
-	return c:IsSpellTrap() and c:IsType(TYPE_CONTINUOUS) and Duel.GetLocationCount(tp,LOCATION_SZONE)>0
+	return Duel.GetLocationCount(tp,LOCATION_SZONE)>0
 end
 function s.tg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
 	if chkc then return chkc:IsOnField() and chkc:IsControler(1-tp) and s.filter(chkc,tp) end
@@ -93,10 +103,8 @@ function s.op(e,tp,eg,ep,ev,re,r,rp)
 			Duel.BreakEffect()
 		end
 		Duel.MoveToField(tc,tp,tp,LOCATION_FZONE,POS_FACEUP,true)
-	else
-		if Duel.GetLocationCount(tp,LOCATION_SZONE)>0 then
-			Duel.MoveToField(tc,tp,tp,LOCATION_SZONE,POS_FACEUP,true)
-		end
+	elseif Duel.GetLocationCount(tp,LOCATION_SZONE)>0 then
+		Duel.MoveToField(tc,tp,tp,LOCATION_SZONE,POS_FACEUP,true)
 	end
 	if not tc:IsControler(tp) then return end
 	--the negation ends once it is on your field
@@ -126,6 +134,7 @@ function s.hijack(c,tc)
 	tc:RegisterEffect(e1,true)
 	--marker: "this card is treated as GodMind by a hijack" (used by "GodMind Processor 10² StarWare"'s Pendulum Effect: tc:HasFlagEffect(99900011))
 	tc:RegisterFlagEffect(id,RESET_HIJACK,0,1)
+	dbg("hijack flag registered on "..tc:GetOriginalCode()..": "..tostring(tc:HasFlagEffect(id)))
 	s.rewrite(tc)
 end
 --A monster becomes LIGHT and Machine, or LIGHT and Cyberse if it is an Extra Deck monster
@@ -303,7 +312,11 @@ local function makepatch(own,tc)
 		local r=o_CardRegisterEffect(c,e,...)
 		--while the setup is re-run (P.recording), remember every effect it registers on the card: they are wrapped directly,
 		--without asking Card.GetCardEffect for them (it only lists effects that are available RIGHT NOW)
-		if P.recording and c==tc then table.insert(P.created,e) end
+		if P.recording and c==tc then
+			table.insert(P.created,e)
+			--signature of the effect (used by s.latefix to recognise the ORIGINAL effect it replaces)
+			table.insert(P.sigs,s.signature(e))
+		end
 		return r
 	end
 	return P
@@ -375,16 +388,60 @@ end
 --were never wrapped. Two fixes:
 --  1) the effects the re-run setup creates are collected while it runs (P.created) and wrapped directly (no listing needed);
 --  2) the ORIGINAL effects that were not listed are removed later, as soon as they do show up in the list (s.latefix, from a watcher on
---     EVENT_ADJUST). An effect is "original" if it was registered before the hijack started: effect IDs grow with time, so it is older
---     than hijackstamp.
-local hijackstamp=setmetatable({},{__mode="k"}) --card -> effect ID counter at the start of its last hijack
+--     EVENT_ADJUST).
+--     (First attempt: "original = older effect ID". error.log of 2026-11-25 (Cyber Dragon Infinity) showed that does NOT work: an effect gets its
+--     ID when it becomes available, so the original ATK effect had id 705, the rebuilt one 706, and the hijack stamp was 689.
+--     Now an original is recognised by its SIGNATURE: same type / code / property / range and the same pattern of condition, cost, target,
+--     operation and value, as one of the effects the re-run created, but it is not one of those created effects itself.)
+local hijackeffects=setmetatable({},{__mode="k"}) --card -> list of signatures of the effects its last hijack re-created (the card is being watched)
+local createdfx=setmetatable({},{__mode="k"})     --effect -> true for every effect a hijack re-created
+local latedbg=setmetatable({},{__mode="k"})
+local function fnpattern(f)
+	if type(f)=="function" then return "f" end
+	return tostring(f)
+end
+function s.signature(e)
+	return {type=e:GetType(),code=e:GetCode(),prop=e:GetProperty()&~EFFECT_FLAG_INITIAL,range=e:GetRange(),
+		cond=fnpattern(e:GetCondition()),cost=fnpattern(e:GetCost()),tg=fnpattern(e:GetTarget()),op=fnpattern(e:GetOperation()),val=fnpattern(e:GetValue())}
+end
+local function samesig(a,b)
+	for k,v in pairs(a) do
+		if b[k]~=v then return false end
+	end
+	return true
+end
 function s.latefix(tc)
-	local stamp=hijackstamp[tc]
-	if not stamp then return end
+	local sigs=hijackeffects[tc]
+	if not sigs then return end
+	--DEBUG: once per hijack, when the card is first found in the Monster Zone, list its own effects
+	if DEBUG and tc:IsLocation(LOCATION_MZONE) and latedbg[tc]~=sigs then
+		latedbg[tc]=sigs
+		dbg("latefix check of "..tc:GetOriginalCode().." on the field, is GodMind="..tostring(o_IsSetCard(tc,SET_GODMIND))
+			..", is LIGHT="..tostring(tc:IsAttribute(ATTRIBUTE_LIGHT)))
+		for _,te in ipairs{tc:GetCardEffect()} do
+			if te:GetOwner()==tc then dbg("   own effect id="..tostring(te:GetFieldID())..", re-created="..tostring(createdfx[te]==true)..": "..describe(te)) end
+		end
+	end
 	for _,te in ipairs{tc:GetCardEffect()} do
-		if te:GetOwner()==tc and te:GetFieldID()<stamp then
-			dbg("latefix: resetting original effect of "..tc:GetOriginalCode()..": "..describe(te))
-			te:Reset()
+		if te:GetOwner()==tc and not createdfx[te] and not wrappedeffects[te] then
+			local sig=s.signature(te)
+			local matched=false
+			for _,rs in ipairs(sigs) do
+				if samesig(rs,sig) then
+					matched=true
+					dbg("latefix: resetting original effect of "..tc:GetOriginalCode()..": "..describe(te))
+					te:Reset()
+					break
+				end
+			end
+			if DEBUG and not matched and not latedbg[te] then
+				latedbg[te]=true
+				local function str(x) return "type="..x.type..",code="..x.code..",prop="..x.prop..",range="..x.range..",cond="..x.cond..",cost="..x.cost..",tg="..x.tg..",op="..x.op..",val="..x.val end
+				dbg("latefix: NO match for own effect id="..tostring(te:GetFieldID())..": "..str(sig))
+				for _,rs in ipairs(sigs) do
+					if rs.code==sig.code then dbg("      recorded with the same code: "..str(rs)) end
+				end
+			end
 		end
 	end
 end
@@ -392,27 +449,26 @@ function s.watch(tc)
 	local ew=Effect.CreateEffect(tc)
 	ew:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
 	ew:SetCode(EVENT_ADJUST)
+	--The hijack flag cannot be used to tell "the hijack is over": error.log of 2026-11-25 showed it is already gone when the card has just been
+	--Special Summoned from the Extra Deck. Instead: the watcher waits until the card has been on the field and ends when it has left it again
+	--(that is when the hijack effects end anyway).
+	local seen=false
 	ew:SetOperation(function(e)
-		if not tc:HasFlagEffect(id) then
-			--the hijack is over (the card left the field, ...)
-			hijackstamp[tc]=nil
+		if tc:IsOnField() then
+			seen=true
+			s.latefix(tc)
+		elseif seen then
+			dbg("watcher for "..tc:GetOriginalCode().." ends: the card left the field, location="..tc:GetLocation())
+			hijackeffects[tc]=nil
 			e:Reset()
-			return
 		end
-		s.latefix(tc)
 	end)
 	o_DuelRegisterEffect(ew,0)
 end
 function s.rewrite(tc)
 	local P=makepatch(tc:GetOriginalCode(),tc)
 	P.created={}
-	--remember how far the effect IDs have come, to tell the card's original effects from the ones registered from now on
-	local stampfx=Effect.CreateEffect(tc)
-	stampfx:SetType(EFFECT_TYPE_SINGLE)
-	stampfx:SetCode(99900303)
-	o_CardRegisterEffect(tc,stampfx,true)
-	hijackstamp[tc]=stampfx:GetFieldID()
-	stampfx:Reset()
+	P.sigs={}
 	local old=s.ownlist(tc)
 	local mt=Duel.GetMetatable(tc:GetOriginalCode())
 	local rebuilt=false
@@ -433,6 +489,10 @@ function s.rewrite(tc)
 		end
 	end
 	dbg("after re-run: "..#P.created.." effects created (rebuilt="..tostring(rebuilt)..")")
+	if rebuilt then
+		for _,te in ipairs(P.created) do createdfx[te]=true end
+		hijackeffects[tc]=P.sigs
+	end
 	if rebuilt then
 		s.wrapeffects(P,P.created)
 	else

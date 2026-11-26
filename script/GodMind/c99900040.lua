@@ -3,11 +3,9 @@
 --  You can only use this effect of "GodMind Processor 10² StarWare" once per turn.
 --[ Monster Effect ] 2+ "GodMind" monsters, including a "GodMind" Link Monster
 --  If you can Pendulum Summon Level 8, you can Pendulum Summon this face-up card in your Extra Deck.
---  (Quick Effect, once per turn, DOES NOT TARGET): negate the effects of 1 face-up monster, or 1 face-up Spell/Trap Card, your opponent controls (if it is a Spell/Trap Card being activated,
---  also negate that activation), then take control of it (a Continuous Spell/Trap or Field Spell is moved to your S/T Zone or Field Zone; any other Spell/Trap Card is Set in your S/T Zone),
---  and if you do, its effects are no longer negated, also it is hijacked (+ LIGHT / Machine, or Cyberse for an Extra Deck monster).
---The card is chosen on resolution (no targeting). When this effect responds to a Normal / Quick-Play Spell or a Normal / Counter Trap being activated, that card is still on the field and on the chain,
---so it can be chosen, its chain link is negated, and it ends up Set on your side, hijacked.
+--  (2 Ignition Effects sharing one use per turn, DO NOT TARGET), CHANGED 2026-11-25: choose on resolution 1 face-up monster / face-up Continuous Spell/Trap / face-up Field Spell
+--  (negate its effects, take control), 1 Set Spell/Trap your opponent controls (take control, it stays Set), or 1 Spell/Trap in your opponent's GY (Set it on your side);
+--  then it is hijacked (+ LIGHT / Machine, or Cyberse for an Extra Deck monster). It no longer steals Normal / Quick-Play Spells or Normal / Counter Traps that are being activated.
 local s,id=GetID()
 local SET_GODMIND=0x1650
 local starware=Duel.LoadCardScript(99900011)
@@ -35,18 +33,28 @@ function s.initial_effect(c)
 	e0:SetTarget(s.pstg)
 	e0:SetOperation(s.psop)
 	c:RegisterEffect(e0)
-	--Quick Effect, once per turn, no target: negate + take control (a Spell/Trap that is being activated is Set instead)
+	--Ignition Effect 1 (no target): negate + take control of a monster.
+	--Ignition Effect 2 (no target): negate + take control of backrow cards / Set a Spell/Trap from the GY.
+	--(2026-11-25: not Quick Effects; with "GodMind Processing Universe" face-up they get Quick clones like every other Extra Deck GodMind)
+	--(split in two on 2026-11-25 for readability; each has its own once-per-turn (1,id) and (1,{id,2}) since 2026-11-25)
 	local e1=Effect.CreateEffect(c)
 	e1:SetDescription(aux.Stringid(id,0))
 	e1:SetCategory(CATEGORY_CONTROL+CATEGORY_DISABLE)
-	e1:SetType(EFFECT_TYPE_QUICK_O)
-	e1:SetCode(EVENT_FREE_CHAIN)
+	e1:SetType(EFFECT_TYPE_IGNITION)
 	e1:SetRange(LOCATION_MZONE)
-	e1:SetHintTiming(0,TIMINGS_CHECK_MONSTER_E)
 	e1:SetCountLimit(1,id)
-	e1:SetTarget(s.tg)
-	e1:SetOperation(s.op)
+	e1:SetTarget(s.montg)
+	e1:SetOperation(s.monop)
 	c:RegisterEffect(e1)
+	local e2=Effect.CreateEffect(c)
+	e2:SetDescription(aux.Stringid(id,2))
+	e2:SetCategory(CATEGORY_CONTROL+CATEGORY_DISABLE)
+	e2:SetType(EFFECT_TYPE_IGNITION)
+	e2:SetRange(LOCATION_MZONE)
+	e2:SetCountLimit(1,{id,2})
+	e2:SetTarget(s.sttg)
+	e2:SetOperation(s.stop)
+	c:RegisterEffect(e2)
 end
 function s.linkmat(c,lc,sumtype,tp)
 	return c:IsType(TYPE_LINK,lc,sumtype,tp) and c:IsSetCard(SET_GODMIND,lc,sumtype,tp)
@@ -79,36 +87,29 @@ function s.psop(e,tp,eg,ep,ev,re,r,rp)
 	end
 end
 ---------------------------------------------------------------------------------------------------------------------
---Monster Effect (no target): the card is chosen on resolution from the cards your opponent controls
---  monster: face-up and its control can be changed; Field Spell: face-up; any other face-up Spell/Trap (Continuous, or a Normal / Quick-Play /
---  Counter card that is being activated): needs a free Spell & Trap Zone
---is this Spell/Trap Card being activated, with its chain link still waiting to resolve?
-function s.pending(c)
-	for i=1,Duel.GetCurrentChain() do
-		local te=Duel.GetChainInfo(i,CHAININFO_TRIGGERING_EFFECT)
-		if te and te:GetHandler()==c and te:IsHasType(EFFECT_TYPE_ACTIVATE) then return true end
+--Ignition Effects (no target): the card is chosen on resolution from the cards your opponent controls (or their GY)
+--  Effect 1: a face-up monster in the Monster Zone whose control can be changed -> negated, control taken, hijacked, LIGHT + Machine / Cyberse
+--  Effect 2 (no longer steals Normal / Quick-Play Spells or Normal / Counter Traps that are being activated, 2026-11-25):
+--    a) a face-up Field Spell, or face-up Continuous Spell/Trap -> negated, moved face-up to your Field Zone / S&T Zone
+--    b) a face-down Spell/Trap on the field                     -> moved to your Field Zone / S&T Zone, staying face-down
+--    c) a Spell/Trap in the opponent's GY                       -> Set on your side
+--  all of them are hijacked afterwards
+function s.monfilter(c,tp)
+	return c:IsFaceup() and c:IsMonster() and c:IsLocation(LOCATION_MZONE) and c:IsControlerCanBeChanged()
+end
+function s.stfilter(c,tp)
+	if c:IsLocation(LOCATION_GRAVE) then
+		return c:IsSpellTrap() and c:IsSSetable(true) and (c:IsType(TYPE_FIELD) or Duel.GetLocationCount(tp,LOCATION_SZONE)>0)
 	end
-	return false
-end
-function s.filter(c,tp)
-	if not c:IsFaceup() then return false end
-	if c:IsMonster() then return c:IsControlerCanBeChanged() end
+	if c:IsFacedown() then
+		return c:IsSpellTrap() and (c:IsType(TYPE_FIELD) or Duel.GetLocationCount(tp,LOCATION_SZONE)>0)
+	end
+	if c:IsMonster() then return false end
 	if c:IsType(TYPE_FIELD) then return true end
-	--Continuous Spell/Trap, or any Spell/Trap Card that is being activated
-	return c:IsSpellTrap() and (c:IsType(TYPE_CONTINUOUS) or s.pending(c)) and Duel.GetLocationCount(tp,LOCATION_SZONE)>0
+	return c:IsSpellTrap() and c:IsType(TYPE_CONTINUOUS) and Duel.GetLocationCount(tp,LOCATION_SZONE)>0
 end
-function s.tg(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.IsExistingMatchingCard(s.filter,tp,0,LOCATION_ONFIELD,1,nil,tp) end
-	Duel.SetOperationInfo(0,CATEGORY_DISABLE,nil,1,1-tp,LOCATION_ONFIELD)
-	Duel.SetOperationInfo(0,CATEGORY_CONTROL,nil,1,1-tp,LOCATION_ONFIELD)
-end
-function s.op(e,tp,eg,ep,ev,re,r,rp)
-	local c=e:GetHandler()
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_CONTROL)
-	local tc=Duel.SelectMatchingCard(tp,s.filter,tp,0,LOCATION_ONFIELD,1,1,nil,tp):GetFirst()
-	if not tc then return end
-	Duel.HintSelection(tc)
-	--negate its effects...
+--negate the effects of a face-up card until it is on your side (the returned effects are reset by the caller)
+function s.negate(c,tc)
 	local e1=Effect.CreateEffect(c)
 	e1:SetType(EFFECT_TYPE_SINGLE)
 	e1:SetCode(EFFECT_DISABLE)
@@ -119,57 +120,83 @@ function s.op(e,tp,eg,ep,ev,re,r,rp)
 	e2:SetCode(EFFECT_DISABLE_EFFECT)
 	e2:SetReset(RESET_EVENT|RESETS_STANDARD)
 	tc:RegisterEffect(e2)
-	--A Normal / Quick-Play Spell or Normal / Counter Trap that is being activated: its effects stay negated, so when its chain link resolves
-	--it resolves as negated; it is kept from going to the GY (Card.CancelToGrave) and, once its link has resolved, it is Set on your side and hijacked.
-	if tc:IsSpellTrap() and not tc:IsType(TYPE_FIELD|TYPE_CONTINUOUS) and s.pending(tc) then
-		tc:CancelToGrave()
-		local fid=tc:GetFieldID()
-		local ec=Effect.CreateEffect(c)
-		ec:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
-		ec:SetCode(EVENT_CHAIN_SOLVED)
-		ec:SetCondition(function(e_,tp_,eg_,ep_,ev_,re_) return re_~=nil and re_:GetHandler()==tc end)
-		ec:SetOperation(function(e_,tp_)
-			e_:Reset()
-			if not (tc:IsOnField() and tc:GetFieldID()==fid and tc:IsFaceup()) then
-				e1:Reset() e2:Reset()
-				return
-			end
-			if Duel.GetLocationCount(tp,LOCATION_SZONE)>0 then
-				Duel.MoveToField(tc,tp,tp,LOCATION_SZONE,POS_FACEDOWN,true)
-			end
-			e1:Reset() e2:Reset()
-			if tc:IsControler(tp) then
-				starware.hijack(c,tc)
-			end
-		end)
-		ec:SetReset(RESET_CHAIN)
-		Duel.RegisterEffect(ec,tp)
+	return e1,e2
+end
+--Effect 1: monsters
+function s.montg(e,tp,eg,ep,ev,re,r,rp,chk)
+	if chk==0 then return Duel.IsExistingMatchingCard(s.monfilter,tp,0,LOCATION_MZONE,1,nil,tp) end
+	Duel.SetPossibleOperationInfo(0,CATEGORY_DISABLE,nil,1,1-tp,LOCATION_MZONE)
+	Duel.SetPossibleOperationInfo(0,CATEGORY_CONTROL,nil,1,1-tp,LOCATION_MZONE)
+end
+function s.monop(e,tp,eg,ep,ev,re,r,rp)
+	local c=e:GetHandler()
+	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_CONTROL)
+	local tc=Duel.SelectMatchingCard(tp,s.monfilter,tp,0,LOCATION_MZONE,1,1,nil,tp):GetFirst()
+	if not tc then return end
+	Duel.HintSelection(tc)
+	local e1,e2=s.negate(c,tc)
+	Duel.GetControl(tc,tp)
+	if not tc:IsControler(tp) then return end
+	--the negation of its effects ends once it is on your field
+	e1:Reset()
+	e2:Reset()
+	--hijack it, and it becomes LIGHT and Machine / Cyberse
+	starware.hijack(c,tc)
+	starware.lightform(c,tc)
+end
+--Effect 2: backrow
+function s.sttg(e,tp,eg,ep,ev,re,r,rp,chk)
+	if chk==0 then return Duel.IsExistingMatchingCard(aux.NecroValleyFilter(s.stfilter),tp,0,LOCATION_ONFIELD|LOCATION_GRAVE,1,nil,tp) end
+	Duel.SetPossibleOperationInfo(0,CATEGORY_DISABLE,nil,1,1-tp,LOCATION_ONFIELD)
+	Duel.SetPossibleOperationInfo(0,CATEGORY_CONTROL,nil,1,1-tp,LOCATION_ONFIELD)
+end
+function s.stop(e,tp,eg,ep,ev,re,r,rp)
+	local c=e:GetHandler()
+	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_CONTROL)
+	local tc=Duel.SelectMatchingCard(tp,aux.NecroValleyFilter(s.stfilter),tp,0,LOCATION_ONFIELD|LOCATION_GRAVE,1,1,nil,tp):GetFirst()
+	if not tc then return end
+	Duel.HintSelection(tc)
+	--c) a Spell/Trap from the opponent's GY: Set on your side, then hijacked
+	if tc:IsLocation(LOCATION_GRAVE) then
+		if Duel.SSet(tp,tc,tp)>0 and tc:IsLocation(LOCATION_ONFIELD) and tc:IsControler(tp) then
+			starware.hijack(c,tc)
+		end
 		return
 	end
-	--...then take control of it
-	if tc:IsMonster() then
-		Duel.GetControl(tc,tp)
-	elseif tc:IsType(TYPE_FIELD) then
+	--b) a face-down Spell/Trap: moved to your side, staying face-down (nothing to negate), then hijacked
+	if tc:IsFacedown() then
+		if tc:IsType(TYPE_FIELD) then
+			local fc=Duel.GetFieldCard(tp,LOCATION_FZONE,0)
+			if fc then
+				Duel.SendtoGrave(fc,REASON_RULE)
+				Duel.BreakEffect()
+			end
+			Duel.MoveToField(tc,tp,tp,LOCATION_FZONE,POS_FACEDOWN,true)
+		else
+			Duel.MoveToField(tc,tp,tp,LOCATION_SZONE,POS_FACEDOWN,true)
+		end
+		if tc:IsControler(tp) then
+			starware.hijack(c,tc)
+		end
+		return
+	end
+	--a) a face-up Field Spell / Continuous Spell/Trap: negate its effects, then take control of it
+	local e1,e2=s.negate(c,tc)
+	if tc:IsType(TYPE_FIELD) then
 		local fc=Duel.GetFieldCard(tp,LOCATION_FZONE,0)
 		if fc then
 			Duel.SendtoGrave(fc,REASON_RULE)
 			Duel.BreakEffect()
 		end
 		Duel.MoveToField(tc,tp,tp,LOCATION_FZONE,POS_FACEUP,true)
-	elseif tc:IsType(TYPE_CONTINUOUS) then
-		if Duel.GetLocationCount(tp,LOCATION_SZONE)>0 then
-			Duel.MoveToField(tc,tp,tp,LOCATION_SZONE,POS_FACEUP,true)
-		end
+	elseif Duel.GetLocationCount(tp,LOCATION_SZONE)>0 then
+		Duel.MoveToField(tc,tp,tp,LOCATION_SZONE,POS_FACEUP,true)
 	end
 	if not tc:IsControler(tp) then return end
-	--the negation of its effects ends once it is on your field
 	e1:Reset()
 	e2:Reset()
-	--hijack it, and a monster becomes LIGHT and Machine / Cyberse
 	starware.hijack(c,tc)
-	starware.lightform(c,tc)
 end
-
 --Summoning condition: only by its own Summon procedure (LINK Summon), a Pendulum Summon, its own effect, or "GodMind Computer Superprocess" (99900022)
 function s.splimit(e,se,sp,st)
 	if se then

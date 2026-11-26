@@ -1,5 +1,5 @@
 --GodMind Casualties (was "GodMind Hotfix" until 2026-11-22)
---Counter Trap. When your opponent activates a monster effect, or a Spell/Trap Card, while you control a "GodMind" Fusion, Synchro, Xyz, or Link Monster:
+--Counter Trap. When your opponent activates a monster effect, or a Spell/Trap Card, while you control 3 or more "GodMind" monsters:
 --negate the activation, and if you do, shuffle that card into the Deck, then banish all other copies of that card from your opponent's field, hand, Deck, Extra Deck, and GY.
 --If this card is in your GY: you can banish 1 other "GodMind" card from your GY; shuffle this card into the Deck.
 --You can only use each effect of "GodMind Casualties" once per turn.
@@ -32,12 +32,12 @@ function s.initial_effect(c)
 	c:RegisterEffect(e2)
 end
 function s.gmfilter(c)
-	return c:IsFaceup() and c:IsSetCard(SET_GODMIND) and c:IsType(EXTRA_TYPES)
+	return c:IsFaceup() and c:IsMonster() and c:IsSetCard(SET_GODMIND)
 end
 function s.condition(e,tp,eg,ep,ev,re,r,rp)
 	if rp==tp or not Duel.IsChainNegatable(ev) then return false end
 	if not (re:IsMonsterEffect() or re:IsHasType(EFFECT_TYPE_ACTIVATE)) then return false end
-	return Duel.IsExistingMatchingCard(s.gmfilter,tp,LOCATION_MZONE,0,1,nil)
+	return Duel.IsExistingMatchingCard(s.gmfilter,tp,LOCATION_MZONE,0,3,nil)
 end
 function s.rmfilter(c,code,rc)
 	return c~=rc and c:IsCode(code) and c:IsAbleToRemove()
